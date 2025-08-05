@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
-import { AuthContext } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContext';
 
 const Container = styled.div`
   display: flex;
@@ -74,8 +74,9 @@ const Input = styled.input`
 `
 
 
+
 export default function Login() {
-  const { login } = useContext(AuthContext)
+  const { login } = useAuth();
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')

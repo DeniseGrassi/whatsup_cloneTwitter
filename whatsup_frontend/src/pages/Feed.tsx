@@ -1,8 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { Edit2, Trash2 } from 'lucide-react'
-import { AuthContext } from '../context/AuthContext'
+// import { AuthContext } from '../context/AuthContext'
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext';
+
+
 
 const Container = styled.div`
   max-width: 600px;
@@ -81,7 +84,7 @@ interface Post {
 }
 
 export default function Feed() {
-  const { token, username } = useContext(AuthContext)
+  const { token, username } = useAuth();
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

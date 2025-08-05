@@ -1,5 +1,3 @@
-// src/pages/Profile.tsx
-
 import React, {
   useContext,
   useEffect,
@@ -10,7 +8,7 @@ import React, {
 import { useParams, Link } from 'react-router-dom'
 import styled from 'styled-components'
 import api from '../services/api'
-import { AuthContext } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContext';
 
 interface MiniUser {
   username: string
@@ -146,7 +144,7 @@ const PostContent = styled.p`
 `
 
 export default function Profile() {
-  const { username: myUser, logout } = useContext(AuthContext)
+  const { username: myUser, logout } = useAuth();
   const { username: routeUsername } = useParams<{ username: string }>()
   const isMe = !routeUsername || routeUsername === myUser
 
