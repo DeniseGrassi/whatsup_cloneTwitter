@@ -1,0 +1,14 @@
+# Ignore venv e dependências do backend
+venv/
+*.pyc
+__pycache__/
+db.sqlite3
+
+# Ignore arquivos do VSCode
+.vscode/
+
+# Ignore ambiente do sistema
+.DS_Store
+
+# Você pode ignorar também os node_modules da raiz (caso algum dia existam)
+node_modules/
