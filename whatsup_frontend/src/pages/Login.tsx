@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext';
+import { Link } from "react-router-dom";
 
 const Container = styled.div`
   display: flex;
@@ -83,43 +84,46 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  try {
-    await login(username, password)
-    navigate('/feed')
-  } catch (err: any) {
-    setError(err.message)
+    e.preventDefault()
+    try {
+      await login(username, password)
+      navigate('/feed')
+    } catch (err: any) {
+      setError(err.message)
+    }
   }
-}
 
 
   return (
     <Container>
       <Card>
-          <Title>Entrar no WhatsUp!</Title>
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          <form onSubmit={handleSubmit}>
-            <Field>
-              <label>Usuário</label>
-              <Input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Usuário"
-                required
-              />
-            </Field>
-            <Field>
-              <label>Senha</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Sua senha"
-                required
-              />
-            </Field>             
-            <Button type="submit">Entrar</Button>
+        <Title>Entrar no WhatsUp!</Title>
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+        <form onSubmit={handleSubmit}>
+          <Field>
+            <label>Usuário</label>
+            <Input
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="Usuário"
+              required
+            />
+          </Field>
+          <Field>
+            <label>Senha</label>
+            <Input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Sua senha"
+              required
+            />
+          </Field>
+          <Button type="submit">Entrar</Button>
+          <p>
+            Não tem conta? <Link to="/register">Crie uma agora!</Link>
+          </p>
         </form>
       </Card>
     </Container>
