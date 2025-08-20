@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000/api/"; // Ajuste se for rodar em produção/deploy
+const API_URL = "https://whatsup-backend-c00eef392a0f.herokuapp.com/api/";
 
 const api = axios.create({
   baseURL: API_URL,
