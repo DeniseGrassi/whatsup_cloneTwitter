@@ -31,3 +31,6 @@ db.sqlite3
 
 # Ignore arquivos do VSCode
 .vscode/
+node_modules/
+venv/
+.whatever
