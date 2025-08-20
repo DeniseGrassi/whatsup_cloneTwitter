@@ -1,8 +1,7 @@
-import React, { useContext, useState } from 'react'
+import React, { useState } from 'react'
 import styled from 'styled-components'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext';
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from 'react-router-dom'
+import api from '../services/api'
 
 const Container = styled.div`
   display: flex;
@@ -11,7 +10,7 @@ const Container = styled.div`
   padding: 2rem;
   min-height: 100vh;
   background: #f0f2f5;
-`
+`;
 const Card = styled.div`
   background: #fff;
   padding: 2rem 2.5rem;
@@ -19,12 +18,12 @@ const Card = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   width: 100%;
   max-width: 400px;
-`
+`;
 const Title = styled.h2`
   margin: 0 0 1.5rem;
   text-align: center;
   color: #333;
-`
+`;
 const Field = styled.div`
   margin-bottom: 1rem;
   label {
@@ -45,8 +44,7 @@ const Field = styled.div`
       border-color: #5865f2;
     }
   }
-`
-
+`;
 const Button = styled.button`
   width: 100%;
   padding: 0.75rem;
@@ -60,49 +58,49 @@ const Button = styled.button`
   &:hover {
     background: #4a52c2;
   }
-`
-
+`;
 const ErrorMessage = styled.p`
   color: #d32f2f;
   text-align: center;
   margin-bottom: 1rem;
-`
-
-const Input = styled.input`
-  width: 100%;
-  padding: 0.5rem;
-  margin: 0.5rem 0;
-`
-
-
+`;
 
 export default function Login() {
-  const { login } = useAuth();
-  const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    setError(null);
     try {
-      await login(username, password)
-      navigate('/feed')
-    } catch (err: any) {
-      setError(err.message)
-    }
-  }
+      // POST para /api/login/
+      const response = await api.post('login/', {
+        username,
+        password
+      });
+      const { token } = response.data;
 
+      // salva o token onde preferir
+      localStorage.setItem('token', token);
+
+      navigate('/feed');
+    } catch (err: any) {
+      setError('Usuário ou senha inválidos');
+    }
+  };
 
   return (
     <Container>
       <Card>
         <Title>Entrar no WhatsUp!</Title>
         {error && <ErrorMessage>{error}</ErrorMessage>}
+
         <form onSubmit={handleSubmit}>
           <Field>
             <label>Usuário</label>
-            <Input
+            <input
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
@@ -110,9 +108,10 @@ export default function Login() {
               required
             />
           </Field>
+
           <Field>
             <label>Senha</label>
-            <Input
+            <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -120,12 +119,14 @@ export default function Login() {
               required
             />
           </Field>
+
           <Button type="submit">Entrar</Button>
-          <p>
+
+          <p style={{ marginTop: "1rem", textAlign: "center" }}>
             Não tem conta? <Link to="/register">Crie uma agora!</Link>
           </p>
         </form>
       </Card>
     </Container>
-  )
+  );
 }
