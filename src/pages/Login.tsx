@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
-import styled from 'styled-components'
-import { useNavigate, Link } from 'react-router-dom'
-import api from '../services/api'
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Container = styled.div`
   display: flex;
@@ -67,6 +67,7 @@ const ErrorMessage = styled.p`
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth(); // usa o contexto!
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -75,18 +76,9 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      // POST para /api/login/
-      const response = await api.post('login/', {
-        username,
-        password
-      });
-      const { token } = response.data;
-
-      // salva o token onde preferir
-      localStorage.setItem('token', token);
-
-      navigate('/feed');
-    } catch (err: any) {
+      await login(username, password);               // seta token no contexto
+      navigate(`/profile/${username}`);              // ou navigate('/feed')
+    } catch {
       setError('Usuário ou senha inválidos');
     }
   };
@@ -122,7 +114,7 @@ export default function Login() {
 
           <Button type="submit">Entrar</Button>
 
-          <p style={{ marginTop: "1rem", textAlign: "center" }}>
+          <p style={{ marginTop: '1rem', textAlign: 'center' }}>
             Não tem conta? <Link to="/register">Crie uma agora!</Link>
           </p>
         </form>
