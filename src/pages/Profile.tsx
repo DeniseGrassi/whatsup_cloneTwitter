@@ -1,9 +1,8 @@
-// src/pages/Profile.tsx
-import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import styled from 'styled-components';
-import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import { useParams, Link } from "react-router-dom";
+import styled from "styled-components";
+import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 interface MiniUser {
   username: string;
@@ -98,7 +97,7 @@ const Button = styled.button<{ primary?: boolean }>`
   border-radius: 4px;
   cursor: pointer;
   color: #fff;
-  background: ${p => (p.primary ? '#0077ff' : '#777')};
+  background: ${(p) => (p.primary ? "#0077ff" : "#777")};
 `;
 
 const Form = styled.form`
@@ -147,35 +146,56 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('');
-  const [bio, setBio] = useState('');
+  const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
+  // Helper para normalizar a resposta do backend
+  const normalizeProfile = (data: Partial<ProfileData>): ProfileData => {
+    const following = data.following ?? [];
+    const followers = data.followers ?? [];
+    const posts = data.posts ?? [];
+    return {
+      username: data.username ?? "",
+      email: data.email ?? "",
+      bio: data.bio ?? "",
+      photo: data.photo ?? null,
+      following,
+      followers,
+      following_count: data.following_count ?? following.length,
+      followers_count: data.followers_count ?? followers.length,
+      posts,
+    };
+  };
 
-    const url = isMe ? 'profile/me/' : `profile/${routeUsername}/`;
-    api.get<ProfileData>(url)
-      .then(res => {
-        if (!res.data) {
-          setError('Perfil não encontrado.');
-          return;
-        }
-        setProfile(res.data);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const path = isMe ? "profile/me/" : `profile/${routeUsername}/`;
+        const { data } = await api.get<Partial<ProfileData>>(path);
+        const normalized = normalizeProfile(data);
+        setProfile(normalized);
+
         if (isMe) {
-          setEmail(res.data.email);
-          setBio(res.data.bio);
+          setEmail(normalized.email);
+          setBio(normalized.bio);
         }
-      })
-      .catch(err => setError(err.message || 'Falha ao carregar perfil.'))
-      .finally(() => setLoading(false));
+      } catch (e: any) {
+        setError(
+          e?.response?.status ? `Erro ${e.response.status}` : e?.message ?? "Erro ao carregar perfil."
+        );
+        setProfile(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
   }, [routeUsername, isMe]);
 
   function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files[0]) {
-      setPhotoFile(e.target.files[0]);
-    }
+    if (e.target.files?.[0]) setPhotoFile(e.target.files[0]);
   }
 
   async function handleSave(e: FormEvent) {
@@ -185,19 +205,21 @@ export default function Profile() {
     setError(null);
     try {
       const formData = new FormData();
-      formData.append('email', email);
-      formData.append('bio', bio);
-      if (photoFile) formData.append('photo', photoFile);
+      formData.append("email", email);
+      formData.append("bio", bio);
+      if (photoFile) formData.append("photo", photoFile);
 
-      await api.patch('profile/me/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      await api.patch("profile/me/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const res = await api.get<ProfileData>('profile/me/');
-      setProfile(res.data);
-      alert('Perfil atualizado!');
-    } catch {
-      setError('Falha ao atualizar perfil.');
+      const { data } = await api.get<Partial<ProfileData>>("profile/me/");
+      setProfile(normalizeProfile(data));
+      alert("Perfil atualizado!");
+    } catch (e: any) {
+      setError(
+        e?.response?.status ? `Erro ${e.response.status}` : "Falha ao atualizar perfil."
+      );
     }
   }
 
@@ -205,40 +227,46 @@ export default function Profile() {
     if (isMe || !routeUsername) return;
     try {
       await api.post(`profile/${routeUsername}/follow/`);
-      const res = await api.get<ProfileData>(`profile/${routeUsername}/`);
-      setProfile(res.data);
+      const { data } = await api.get<Partial<ProfileData>>(
+        `profile/${routeUsername}/`
+      );
+      setProfile(normalizeProfile(data));
     } catch {
-      alert('Não foi possível alterar follow.');
+      alert("Não foi possível alterar follow.");
     }
   }
 
   if (loading) return <Container>Carregando perfil…</Container>;
-  if (error)   return <Container>Erro: {error}</Container>;
-  if (!profile) return <Container>Perfil não encontrado.</Container>;
+  if (error) return <Container>Erro: {error}</Container>;
+  if (!profile) return <Container>Não foi possível carregar o perfil.</Container>;
 
-  const iAlreadyFollow =
-    !!loggedUser && profile.followers.some(u => u.username === loggedUser);
+  // Fallbacks seguros para o render
+  const following = profile.following ?? [];
+  const followers = profile.followers ?? [];
+  const posts = profile.posts ?? [];
+  const followingCount = profile.following_count ?? following.length;
+  const followersCount = profile.followers_count ?? followers.length;
 
   return (
     <Container>
       <Header>@{profile.username}</Header>
-      <Avatar src={profile.photo || '/default-avatar.png'} alt="avatar" />
+      <Avatar src={profile.photo || "/default-avatar.png"} alt="avatar" />
 
       {profile.bio && <Bio>{profile.bio}</Bio>}
 
       <Stats>
-        <span>Seguindo: {profile.following_count}</span>
-        <span>Seguidores: {profile.followers_count}</span>
+        <span>Seguindo: {followingCount}</span>
+        <span>Seguidores: {followersCount}</span>
       </Stats>
 
       <h2>Seguindo</h2>
-      {profile.following.length === 0 ? (
+      {following.length === 0 ? (
         <p>Não segue ninguém ainda.</p>
       ) : (
         <List>
-          {profile.following.map(u => (
+          {following.map((u) => (
             <Item key={u.username}>
-              <MiniAvatar src={u.photo || '/default-avatar.png'} alt="" />
+              <MiniAvatar src={u.photo || "/default-avatar.png"} alt="" />
               <Link to={`/profile/${u.username}`}>@{u.username}</Link>
             </Item>
           ))}
@@ -246,13 +274,13 @@ export default function Profile() {
       )}
 
       <h2>Seguidores</h2>
-      {profile.followers.length === 0 ? (
+      {followers.length === 0 ? (
         <p>Sem seguidores ainda.</p>
       ) : (
         <List>
-          {profile.followers.map(u => (
+          {followers.map((u) => (
             <Item key={u.username}>
-              <MiniAvatar src={u.photo || '/default-avatar.png'} alt="" />
+              <MiniAvatar src={u.photo || "/default-avatar.png"} alt="" />
               <Link to={`/profile/${u.username}`}>@{u.username}</Link>
             </Item>
           ))}
@@ -262,13 +290,13 @@ export default function Profile() {
       {isMe ? (
         <>
           <Form onSubmit={handleSave}>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p style={{ color: "red" }}>{error}</p>}
             <label>
               E-mail:
               <Input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </label>
             <label>
@@ -276,7 +304,7 @@ export default function Profile() {
               <TextArea
                 rows={3}
                 value={bio}
-                onChange={e => setBio(e.target.value)}
+                onChange={(e) => setBio(e.target.value)}
               />
             </label>
             <label>
@@ -291,16 +319,18 @@ export default function Profile() {
         </>
       ) : (
         <Button primary onClick={toggleFollow}>
-          {iAlreadyFollow ? 'Deixar de seguir' : 'Seguir'}
+          {following.some((u) => u.username === loggedUser)
+            ? "Deixar de seguir"
+            : "Seguir"}
         </Button>
       )}
 
-      <h2>Postagens ({profile.posts.length})</h2>
-      {profile.posts.length === 0 && <p>Sem tweets ainda.</p>}
-      {profile.posts.map(p => (
+      <h2>Postagens ({posts.length})</h2>
+      {posts.length === 0 && <p>Sem tweets ainda.</p>}
+      {posts.map((p) => (
         <PostCard key={p.id}>
           <PostHeader>
-            {new Date(p.created_at).toLocaleString('pt-BR')}
+            {new Date(p.created_at).toLocaleString("pt-BR")}
             {p.parent_detail && <> — Retweet de {p.parent_detail.user}</>}
           </PostHeader>
           <PostContent>{p.content}</PostContent>
