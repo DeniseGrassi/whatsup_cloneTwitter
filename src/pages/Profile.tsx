@@ -1,41 +1,36 @@
-import React, {
-  useContext,
-  useEffect,
-  useState,
-  ChangeEvent,
-  FormEvent
-} from 'react'
-import { useParams, Link } from 'react-router-dom'
-import styled from 'styled-components'
-import api from '../services/api'
+// src/pages/Profile.tsx
+import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import styled from 'styled-components';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 interface MiniUser {
-  username: string
-  photo: string | null
+  username: string;
+  photo: string | null;
 }
 
 interface Post {
-  id: number
-  user: string
-  content: string
-  created_at: string
-  parent: number | null
-  parent_detail?: Partial<Post>
-  likes_count: number
-  comments_count: number
+  id: number;
+  user: string;
+  content: string;
+  created_at: string;
+  parent: number | null;
+  parent_detail?: Partial<Post>;
+  likes_count: number;
+  comments_count: number;
 }
 
 interface ProfileData {
-  username: string
-  email: string
-  bio: string
-  photo: string | null
-  following: MiniUser[]
-  followers: MiniUser[]
-  following_count: number
-  followers_count: number
-  posts: Post[]
+  username: string;
+  email: string;
+  bio: string;
+  photo: string | null;
+  following: MiniUser[];
+  followers: MiniUser[];
+  following_count: number;
+  followers_count: number;
+  posts: Post[];
 }
 
 const Container = styled.div`
@@ -44,12 +39,12 @@ const Container = styled.div`
   padding: 1rem;
   background: #f9f9f9;
   border-radius: 8px;
-`
+`;
 
 const Header = styled.h1`
   color: #0077ff;
   margin-bottom: 0.5rem;
-`
+`;
 
 const Avatar = styled.img`
   width: 100px;
@@ -57,12 +52,12 @@ const Avatar = styled.img`
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 1rem;
-`
+`;
 
 const Bio = styled.p`
   font-style: italic;
   margin-bottom: 1.5rem;
-`
+`;
 
 const Stats = styled.div`
   margin-bottom: 2rem;
@@ -70,7 +65,7 @@ const Stats = styled.div`
     margin-right: 1.5rem;
     font-weight: bold;
   }
-`
+`;
 
 const List = styled.ul`
   display: flex;
@@ -78,14 +73,14 @@ const List = styled.ul`
   list-style: none;
   padding: 0;
   margin: 0 0 2rem 0;
-`
+`;
 
 const Item = styled.li`
   width: 48%;
   display: flex;
   align-items: center;
   margin-bottom: 1rem;
-`
+`;
 
 const MiniAvatar = styled.img`
   width: 32px;
@@ -93,7 +88,7 @@ const MiniAvatar = styled.img`
   border-radius: 50%;
   object-fit: cover;
   margin-right: 0.75rem;
-`
+`;
 
 const Button = styled.button<{ primary?: boolean }>`
   padding: 0.5rem 1rem;
@@ -104,25 +99,25 @@ const Button = styled.button<{ primary?: boolean }>`
   cursor: pointer;
   color: #fff;
   background: ${p => (p.primary ? '#0077ff' : '#777')};
-`
+`;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 2rem;
-`
+`;
 
 const Input = styled.input`
   padding: 0.5rem;
   font-size: 1rem;
-`
+`;
 
 const TextArea = styled.textarea`
   padding: 0.5rem;
   font-size: 1rem;
   resize: vertical;
-`
+`;
 
 const PostCard = styled.div`
   background: #fff;
@@ -130,98 +125,124 @@ const PostCard = styled.div`
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 1rem;
-`
+`;
 
 const PostHeader = styled.div`
   font-size: 0.85rem;
   color: #555;
   margin-bottom: 0.5rem;
-`
+`;
 
 const PostContent = styled.p`
   font-size: 1rem;
   margin-bottom: 0.5rem;
-`
+`;
 
 export default function Profile() {
-  const { username: myUser, logout } = useAuth();
-  const { username: routeUsername } = useParams<{ username: string }>()
-  const isMe = !routeUsername || routeUsername === myUser
+  const { username: loggedUser, logout } = useAuth();
+  const { username: routeUsername } = useParams<{ username: string }>();
 
-  const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // username que será carregado (se não veio na rota, usa o logado)
+  const viewingUsername = routeUsername ?? loggedUser ?? '';
+  const isMe = !!loggedUser && viewingUsername === loggedUser;
 
-  // edição (só para "meu perfil")
-  const [email, setEmail] = useState('')
-  const [bio, setBio] = useState('')
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [email, setEmail] = useState('');
+  const [bio, setBio] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   useEffect(() => {
-    setLoading(true)
-    setError(null)
+    if (!viewingUsername) {
+      setError('Usuário não informado.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
 
-    const url = isMe ? '/api/profile/me/' : `/api/profile/${routeUsername}/`
-    api.get<ProfileData>(url)
+    // IMPORTANTE: sem prefixo /api — o baseURL já termina com /api/
+    const slug = `profile/${encodeURIComponent(viewingUsername)}/`;
+
+    api
+      .get<ProfileData>(slug)
       .then(res => {
-        setProfile(res.data)
+        setProfile(res.data);
         if (isMe) {
-          setEmail(res.data.email)
-          setBio(res.data.bio)
+          setEmail(res.data.email);
+          setBio(res.data.bio);
         }
       })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [routeUsername, isMe])
+      .catch(err => {
+        const msg =
+          err?.response?.status === 404
+            ? 'Perfil não encontrado.'
+            : `Erro ao carregar: ${err?.response?.status ?? ''}`.trim();
+        setError(msg);
+      })
+      .finally(() => setLoading(false));
+  }, [viewingUsername, isMe]);
 
   function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files[0]) {
-      setPhotoFile(e.target.files[0])
+      setPhotoFile(e.target.files[0]);
     }
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    if (!isMe) return
+    e.preventDefault();
+    if (!isMe || !loggedUser) return;
 
-    setError(null)
+    setError(null);
     try {
-      const formData = new FormData()
-      formData.append('email', email)
-      formData.append('bio', bio)
-      if (photoFile) {
-        formData.append('photo', photoFile)
-      }
-      await api.patch('/api/profile/me/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      const res = await api.get<ProfileData>('/api/profile/me/')
-      setProfile(res.data)
-      alert('Perfil atualizado!')
-    } catch {
-      setError('Falha ao atualizar perfil.')
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('bio', bio);
+      if (photoFile) formData.append('photo', photoFile);
+
+      // PATCH no próprio username
+      await api.patch(`profile/${encodeURIComponent(loggedUser)}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const res = await api.get<ProfileData>(
+        `profile/${encodeURIComponent(loggedUser)}/`
+      );
+      setProfile(res.data);
+      alert('Perfil atualizado!');
+    } catch (err: any) {
+      setError('Falha ao atualizar perfil.');
     }
   }
 
   async function toggleFollow() {
-    if (isMe || !routeUsername) return
+    if (isMe || !viewingUsername) return;
+
     try {
-      await api.post(`/api/profile/${routeUsername}/follow/`)
-      const res = await api.get<ProfileData>(`/api/profile/${routeUsername}/`)
-      setProfile(res.data)
+      await api.post(`profile/${encodeURIComponent(viewingUsername)}/follow/`);
+      const res = await api.get<ProfileData>(
+        `profile/${encodeURIComponent(viewingUsername)}/`
+      );
+      setProfile(res.data);
     } catch {
-      alert('Não foi possível alterar follow.')
+      alert('Não foi possível alterar follow.');
     }
   }
 
-  if (loading) return <Container>Carregando perfil…</Container>
-  if (error)   return <Container>Erro: {error}</Container>
-  if (!profile) return null
+  if (loading) return <Container>Carregando perfil…</Container>;
+  if (error) return <Container>Erro: {error}</Container>;
+  if (!profile) return null;
+
+  const iAlreadyFollow =
+    !!loggedUser && profile.followers.some(u => u.username === loggedUser);
 
   return (
     <Container>
       <Header>@{profile.username}</Header>
       <Avatar src={profile.photo || '/default-avatar.png'} alt="avatar" />
+
+      {profile.bio && <Bio>{profile.bio}</Bio>}
 
       <Stats>
         <span>Seguindo: {profile.following_count}</span>
@@ -261,7 +282,7 @@ export default function Profile() {
           <Form onSubmit={handleSave}>
             {error && <p style={{ color: 'red' }}>{error}</p>}
             <label>
-              E‑mail:
+              E-mail:
               <Input
                 type="email"
                 value={email}
@@ -278,21 +299,17 @@ export default function Profile() {
             </label>
             <label>
               Foto de perfil:
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-              />
+              <Input type="file" accept="image/*" onChange={handlePhotoChange} />
             </label>
-            <Button primary type="submit">Salvar alterações</Button>
+            <Button primary type="submit">
+              Salvar alterações
+            </Button>
           </Form>
           <Button onClick={logout}>Sair</Button>
         </>
       ) : (
         <Button primary onClick={toggleFollow}>
-          {profile.following.some(u => u.username === myUser)
-            ? 'Deixar de seguir'
-            : 'Seguir'}
+          {iAlreadyFollow ? 'Deixar de seguir' : 'Seguir'}
         </Button>
       )}
 
@@ -305,9 +322,11 @@ export default function Profile() {
             {p.parent_detail && <> — Retweet de {p.parent_detail.user}</>}
           </PostHeader>
           <PostContent>{p.content}</PostContent>
-          <small>❤️ {p.likes_count} | 💬 {p.comments_count}</small>
+          <small>
+            ❤️ {p.likes_count} | 💬 {p.comments_count}
+          </small>
         </PostCard>
       ))}
     </Container>
-  )
+  );
 }
