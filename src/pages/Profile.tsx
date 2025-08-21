@@ -141,10 +141,7 @@ const PostContent = styled.p`
 export default function Profile() {
   const { username: loggedUser, logout } = useAuth();
   const { username: routeUsername } = useParams<{ username: string }>();
-
-  // username que será carregado (se não veio na rota, usa o logado)
-  const viewingUsername = routeUsername ?? loggedUser ?? '';
-  const isMe = !!loggedUser && viewingUsername === loggedUser;
+  const isMe = !routeUsername || routeUsername === loggedUser;
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -155,34 +152,25 @@ export default function Profile() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   useEffect(() => {
-    if (!viewingUsername) {
-      setError('Usuário não informado.');
-      return;
-    }
     setLoading(true);
     setError(null);
 
-    // IMPORTANTE: sem prefixo /api — o baseURL já termina com /api/
-    const slug = `profile/${encodeURIComponent(viewingUsername)}/`;
-
-    api
-      .get<ProfileData>(slug)
+    const url = isMe ? 'profile/me/' : `profile/${routeUsername}/`;
+    api.get<ProfileData>(url)
       .then(res => {
+        if (!res.data) {
+          setError('Perfil não encontrado.');
+          return;
+        }
         setProfile(res.data);
         if (isMe) {
           setEmail(res.data.email);
           setBio(res.data.bio);
         }
       })
-      .catch(err => {
-        const msg =
-          err?.response?.status === 404
-            ? 'Perfil não encontrado.'
-            : `Erro ao carregar: ${err?.response?.status ?? ''}`.trim();
-        setError(msg);
-      })
+      .catch(err => setError(err.message || 'Falha ao carregar perfil.'))
       .finally(() => setLoading(false));
-  }, [viewingUsername, isMe]);
+  }, [routeUsername, isMe]);
 
   function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files[0]) {
@@ -192,7 +180,7 @@ export default function Profile() {
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
-    if (!isMe || !loggedUser) return;
+    if (!isMe) return;
 
     setError(null);
     try {
@@ -201,29 +189,23 @@ export default function Profile() {
       formData.append('bio', bio);
       if (photoFile) formData.append('photo', photoFile);
 
-      // PATCH no próprio username
-      await api.patch(`profile/${encodeURIComponent(loggedUser)}/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      await api.patch('profile/me/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const res = await api.get<ProfileData>(
-        `profile/${encodeURIComponent(loggedUser)}/`
-      );
+      const res = await api.get<ProfileData>('profile/me/');
       setProfile(res.data);
       alert('Perfil atualizado!');
-    } catch (err: any) {
+    } catch {
       setError('Falha ao atualizar perfil.');
     }
   }
 
   async function toggleFollow() {
-    if (isMe || !viewingUsername) return;
-
+    if (isMe || !routeUsername) return;
     try {
-      await api.post(`profile/${encodeURIComponent(viewingUsername)}/follow/`);
-      const res = await api.get<ProfileData>(
-        `profile/${encodeURIComponent(viewingUsername)}/`
-      );
+      await api.post(`profile/${routeUsername}/follow/`);
+      const res = await api.get<ProfileData>(`profile/${routeUsername}/`);
       setProfile(res.data);
     } catch {
       alert('Não foi possível alterar follow.');
@@ -231,8 +213,8 @@ export default function Profile() {
   }
 
   if (loading) return <Container>Carregando perfil…</Container>;
-  if (error) return <Container>Erro: {error}</Container>;
-  if (!profile) return null;
+  if (error)   return <Container>Erro: {error}</Container>;
+  if (!profile) return <Container>Perfil não encontrado.</Container>;
 
   const iAlreadyFollow =
     !!loggedUser && profile.followers.some(u => u.username === loggedUser);
