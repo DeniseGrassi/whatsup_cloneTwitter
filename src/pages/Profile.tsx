@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import fotoAvatar from "../foto_avatar.avif"
 
 interface MiniUser { username: string; photo: string | null }
 interface Post {
@@ -232,7 +233,7 @@ export default function Profile() {
     <Page>
       {/* HEADER */}
       <HeaderCard>
-        <Avatar src={profile.photo || "/default-avatar.png"} alt="avatar" />
+        <Avatar src={profile.photo || fotoAvatar} alt="avatar" />
         <div>
           <Title>
             <h1>@{profile.username}</h1>
