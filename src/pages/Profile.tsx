@@ -146,7 +146,6 @@ const UploadButton = styled.label`
   padding: .55rem .9rem; border-radius: 10px; cursor: pointer; font-weight: 600;
 `;
 
-/* ==================== COMPONENT ==================== */
 
 export default function Profile() {
   const { username: loggedUser, logout } = useAuth();
