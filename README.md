@@ -18,8 +18,6 @@ O projeto implementa autenticação, perfis personalizados e interações sociai
 A URL `/api/` retorna **404 (Not Found)** por padrão, pois não existe rota index configurada.  
 Para testar, acesse diretamente os endpoints, como por exemplo:  
 
-Base URL: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/
-
 Registro: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/register/
 
 Login: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/login/
@@ -50,7 +48,7 @@ Seguir (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/<u
 
 ---
 
-## ✨ Funcionalidades
+## Funcionalidades
 
 - Criação e autenticação de contas (com token JWT)
 - Edição de perfil (foto, nome, bio)
@@ -61,7 +59,7 @@ Seguir (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/<u
 
 ---
 
-## 🛠️ Tecnologias
+## Tecnologias
 
 **Frontend**
 - React 18
@@ -79,7 +77,7 @@ Seguir (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/<u
 
 ---
 
-## 🚀 Como rodar localmente
+## Como rodar localmente
 
 ### Backend
 ```bash
@@ -100,7 +98,7 @@ npm install
 npm start
 
 ```
-🔗 Endpoints da API
+Endpoints da API
 
 Base URL: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/
 
