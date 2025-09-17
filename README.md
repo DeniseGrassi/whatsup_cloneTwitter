@@ -1,46 +1,130 @@
-# Getting Started with Create React App
+# WhatsUp - Clone do Twitter 🐦
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+O **WhatsUp** é uma aplicação full stack inspirada no Twitter, desenvolvida com **Django REST Framework** no backend e **React/TypeScript** no frontend.  
+O projeto implementa autenticação, perfis personalizados e interações sociais, permitindo criar posts, curtir, comentar, compartilhar e seguir outros usuários.
 
-## Available Scripts
+- **Frontend**: React + TypeScript (deploy na Vercel)  
+- **Backend**: Django REST Framework + PostgreSQL (deploy no Heroku)  
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## 🌐 Deploy
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Frontend**: [WhatsUp App](https://whatsup-topaz.vercel.app/)  
+- **Backend (API)**: [WhatsUp API](https://whatsup-backend-c00eef392a0f.herokuapp.com/api/)  
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+⚠️ Observação:  
 
-### `npm test`
+A URL `/api/` retorna **404 (Not Found)** por padrão, pois não existe rota index configurada.  
+Para testar, acesse diretamente os endpoints, como por exemplo:  
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Base URL: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/
 
-### `npm run build`
+Registro: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/register/
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Login: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/login/
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Feed (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/feed/
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Post por ID: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/
 
-### `npm run eject`
+Comentários: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/comments/
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Comentar (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/comment/
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Like (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/like/
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+Dislike (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/dislike/
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Retweet (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/retweet/
 
-## Learn More
+Share (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/posts/<id>/share/
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Perfis: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Perfil por username: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/<username>/
+
+Meu perfil (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/me/
+
+Seguir (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/<username>/follow/
+
+---
+
+## ✨ Funcionalidades
+
+- Criação e autenticação de contas (com token JWT)
+- Edição de perfil (foto, nome, bio)
+- Seguir e deixar de seguir usuários
+- Criação de posts e retweets
+- Curtir, descurtir, comentar e compartilhar posts
+- Feed personalizado com posts dos usuários seguidos
+
+---
+
+## 🛠️ Tecnologias
+
+**Frontend**
+- React 18
+- TypeScript
+- Styled Components
+- React Router DOM
+- Axios
+
+**Backend**
+- Django 5
+- Django REST Framework
+- PostgreSQL
+- Gunicorn + Whitenoise
+- Deploy no Heroku
+
+---
+
+## 🚀 Como rodar localmente
+
+### Backend
+```bash
+git clone https://github.com/DeniseGrassi/whatsup_cloneTwitter.git
+cd whatsup_cloneTwitter/whatsup_backend
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+### Frontend
+```bash
+cd whatsup_cloneTwitter
+npm install
+npm start
+
+```
+🔗 Endpoints da API
+
+Base URL: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/
+
+| **Recurso** | **Método**    | **Endpoint**                  | **Descrição**                                 | **Auth** |
+| ----------- | ------------- | ----------------------------- | --------------------------------------------- | -------- |
+| **Auth**    | POST          | `/register/`                  | Criar usuário (username, password, email)     | ❌        |
+|             | POST          | `/login/`                     | Login com usuário e senha → retorna token JWT | ❌        |
+| **Perfil**  | GET           | `/profile/`                   | Lista todos os perfis                         | ❌        |
+|             | GET           | `/profile/<username>/`        | Detalhe de um perfil específico               | ❌        |
+|             | GET/PUT/PATCH | `/profile/me/`                | Visualizar/editar perfil do usuário logado    | ✅        |
+|             | POST          | `/profile/<username>/follow/` | Seguir ou deixar de seguir usuário            | ✅        |
+| **Posts**   | POST          | `/posts/`                     | Criar novo post                               | ✅        |
+|             | GET           | `/posts/feed/`                | Feed de posts dos usuários seguidos           | ✅        |
+|             | GET           | `/posts/<id>/`                | Detalhar um post específico                   | ❌        |
+|             | GET           | `/posts/<id>/comments/`       | Listar comentários de um post                 | ❌        |
+|             | POST          | `/posts/<id>/comment/`        | Criar comentário em um post                   | ✅        |
+|             | POST          | `/posts/<id>/like/`           | Curtir/descurtir um post                      | ✅        |
+|             | POST          | `/posts/<id>/dislike/`        | Dar "dislike" em um post                      | ✅        |
+|             | POST          | `/posts/<id>/retweet/`        | Retweetar um post                             | ✅        |
+|             | POST          | `/posts/<id>/share/`          | Compartilhar post                             | ✅        |
+|             | GET           | `/posts/user/<username>/`     | Listar posts de um usuário específico         | ❌        |
+
+
+
+
+
+
