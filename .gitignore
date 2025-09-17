@@ -34,3 +34,9 @@ db.sqlite3
 node_modules/
 venv/
 .whatever
+venv/
+whatsup_backend/db.sqlite3
+
+# bancos locais
+*.sqlite3
+**/db.sqlite3
