@@ -27,11 +27,3 @@ urlpatterns = [
 ]
 
 
-    # # perfil próprio (“me”):
-    # path('me/',       UserProfileView.as_view(),   name='user-profile'),
-
-    # # listar todos os perfis
-    # path('',          ProfileListView.as_view(),   name='profile-list'),
-
-    # # detalhe de qualquer perfil via username
-    # path('<str:username>/', ProfileView.as_view(),  name='profile-detail'),
