@@ -50,7 +50,7 @@ Seguir (auth): https://whatsup-backend-c00eef392a0f.herokuapp.com/api/profile/<u
 
 ## Funcionalidades
 
-- Criação e autenticação de contas (com token JWT)
+- Criação e autenticação de contas (com token TokenAuthentication)
 - Edição de perfil (foto, nome, bio)
 - Seguir e deixar de seguir usuários
 - Criação de posts e retweets
@@ -105,7 +105,7 @@ Base URL: https://whatsup-backend-c00eef392a0f.herokuapp.com/api/
 | **Recurso** | **Método**    | **Endpoint**                  | **Descrição**                                 | **Auth** |
 | ----------- | ------------- | ----------------------------- | --------------------------------------------- | -------- |
 | **Auth**    | POST          | `/register/`                  | Criar usuário (username, password, email)     | ❌        |
-|             | POST          | `/login/`                     | Login com usuário e senha → retorna token JWT | ❌        |
+|             | POST          | `/login/`                     | Login com usuário e senha                     | ❌        |
 | **Perfil**  | GET           | `/profile/`                   | Lista todos os perfis                         | ❌        |
 |             | GET           | `/profile/<username>/`        | Detalhe de um perfil específico               | ❌        |
 |             | GET/PUT/PATCH | `/profile/me/`                | Visualizar/editar perfil do usuário logado    | ✅        |
