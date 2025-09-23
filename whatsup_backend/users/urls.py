@@ -1,29 +1,11 @@
 from django.urls import path
-from .views import (
-    RegisterView,
-    LoginView,
-    UserProfileView,
-    ProfileListView,
-    ProfileView,
-    FollowView,
-)
+from . import views
 
 urlpatterns = [
-    # Autenticação
-    path('register/', RegisterView.as_view(), name='register'),   # POST /api/register/
-    path('login/',    LoginView.as_view(),    name='login'),      # POST /api/login/
-
-    # Perfil do usuário autenticado (GET/PUT/PATCH)
-    path('profile/me/',   UserProfileView.as_view(),   name='user-profile'),  # GET/PUT/PATCH
-
-    # Lista de todos os perfis (só GET)
-    path('profile/',      ProfileListView.as_view(),   name='profile-list'),  # GET
-
-    # Perfil detalhado por username (só GET)
-    path('profile/<str:username>/', ProfileView.as_view(), name='profile-detail'),  # GET
-    
-    # Seguir/Deixar de seguir usuário
-    path('profile/<str:username>/follow/', FollowView.as_view(), name='follow'),
+    path("register/", views.RegisterView.as_view()),
+    path("login/", views.LoginView.as_view()),
+    path("profile/me/", views.UserProfileView.as_view()),
+    path("profile/", views.ProfileListView.as_view()),
+    path("profile/<str:username>/", views.ProfileView.as_view()),
+    path("profile/<str:username>/follow/", views.FollowView.as_view()),
 ]
-
-
