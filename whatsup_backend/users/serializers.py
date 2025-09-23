@@ -1,5 +1,3 @@
-# users/serializers.py
-
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import UserProfile
@@ -19,7 +17,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        # remove o campo password2 antes de criar o User
         validated_data.pop("password2")
         user = User.objects.create_user(
             username=validated_data["username"],
