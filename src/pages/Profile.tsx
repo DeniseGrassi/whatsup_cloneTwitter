@@ -238,7 +238,6 @@ export default function Profile() {
 
   return (
     <Page>
-      {/* HEADER */}
       <HeaderCard>
         <Avatar
           src={photoPreview || resolveMediaUrl(profile.photo) || fotoAvatar}
