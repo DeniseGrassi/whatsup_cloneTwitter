@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import React, { useEffect, useState, ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
 import api, { resolveMediaUrl } from "../services/api";
@@ -83,6 +82,7 @@ const Button = styled.button<{variant?: "primary" | "ghost"}>`
   color: ${({variant}) => variant === "ghost" ? "#1f4cff" : "#fff"};
   background: ${({variant}) => variant === "ghost" ? "#eef3ff" : "#5865f2"};
   &:hover { opacity: .95; }
+  &:disabled { opacity: .6; cursor: not-allowed; }
 `;
 
 const Form = styled.form` display: grid; gap: .8rem; `;
@@ -104,21 +104,37 @@ const UploadButton= styled.label`
   padding: .55rem .9rem; border-radius: 10px; cursor: pointer; font-weight: 600;
 `;
 
+/* Composer (tweet box) */
+const ComposerCard = styled(Card)` padding: 0.75rem 1rem; `;
+const ComposerText = styled(TextArea)` min-height: 80px; `;
+const ComposerFooter = styled.div`
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+`;
+const Counter = styled.span<{bad?: boolean}>`
+  font-size: .85rem; color: ${({bad}) => (bad ? "#d32f2f" : "#5b667e")};
+`;
+
 /* ==================== COMPONENT ==================== */
+
+const MAX_LEN = 280;
 
 export default function Profile() {
   const { username: loggedUser, logout } = useAuth();
   const { username: routeUsername } = useParams<{ username: string }>();
   const isMe = !routeUsername || routeUsername === loggedUser;
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [profile, setProfile]   = useState<ProfileData | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
-  const [email, setEmail]     = useState("");
-  const [bioText, setBioText] = useState("");
+  const [email, setEmail]       = useState("");
+  const [bioText, setBioText]   = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  // Composer states
+  const [newPost, setNewPost] = useState("");
+  const [posting, setPosting] = useState(false);
 
   const normalize = (d: Partial<ProfileData>): ProfileData => {
     const following = d.following ?? [];
@@ -133,6 +149,11 @@ export default function Profile() {
       following_count: d.following_count ?? following.length,
       followers_count: d.followers_count ?? followers.length,
     };
+  };
+
+  const refetchMe = async () => {
+    const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
+    setProfile(normalize(data));
   };
 
   useEffect(() => {
@@ -151,7 +172,7 @@ export default function Profile() {
     fetchProfile();
   }, [routeUsername, isMe]);
 
-  // Preview local
+  // Foto preview
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
     setPhotoFile(f);
@@ -168,16 +189,35 @@ export default function Profile() {
       form.append("bio", bioText);
       if (photoFile) form.append("photo", photoFile);
 
-
-      await api.patch("/profile/me/", form);
-
-
-      const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
-      setProfile(normalize(data));
+      await api.patch("/profile/me/", form); 
+      await refetchMe();
       setPhotoPreview(null);
       alert("Perfil atualizado!");
     } catch (e: any) {
       setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao atualizar perfil.");
+    }
+  };
+
+  // Criar novo post
+  const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
+  const handleCreatePost = async () => {
+    if (!isMe || !canPost) return;
+    setPosting(true);
+    setError(null);
+    try {
+      await api.post("/posts/", { content: newPost.trim() });
+      setNewPost("");
+      await refetchMe(); 
+    } catch (e: any) {
+      setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
+    } finally {
+      setPosting(false);
+    }
+  };
+  const handleComposerKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      void handleCreatePost();
     }
   };
 
@@ -198,6 +238,7 @@ export default function Profile() {
 
   return (
     <Page>
+      {/* HEADER */}
       <HeaderCard>
         <Avatar
           src={photoPreview || resolveMediaUrl(profile.photo) || fotoAvatar}
@@ -227,23 +268,45 @@ export default function Profile() {
       </HeaderCard>
 
       <Grid>
-        {/* COLUNA ESQUERDA – Postagens */}
-        <Card>
-          <SectionTitle>Postagens ({posts.length})</SectionTitle>
-          {posts.length === 0 && <p>Sem tweets ainda.</p>}
-          {posts.map(p => (
-            <PostCard key={p.id}>
-              <PostHead>
-                {new Date(p.created_at).toLocaleString("pt-BR")}
-                {p.parent_detail && <> — Retweet de {p.parent_detail.user}</>}
-              </PostHead>
-              <div style={{fontSize: "1rem", color: "#17203c"}}>{p.content}</div>
-              <div style={{marginTop: ".35rem", fontSize: ".9rem", color:"#5b667e"}}>
-                ❤️ {p.likes_count} · 💬 {p.comments_count}
-              </div>
-            </PostCard>
-          ))}
-        </Card>
+        {/* COLUNA ESQUERDA – Composer + Postagens */}
+        <div style={{display: "grid", gap: "1rem"}}>
+          {isMe && (
+            <ComposerCard>
+              <ComposerText
+                value={newPost}
+                onChange={e => setNewPost(e.target.value)}
+                onKeyDown={handleComposerKey}
+                placeholder="O que está acontecendo?"
+                maxLength={MAX_LEN + 20} 
+              />
+              <ComposerFooter>
+                <Counter bad={newPost.length > MAX_LEN}>
+                  {newPost.length}/{MAX_LEN}
+                </Counter>
+                <Button onClick={handleCreatePost} disabled={!canPost}>
+                  {posting ? "Publicando..." : "Publicar"}
+                </Button>
+              </ComposerFooter>
+            </ComposerCard>
+          )}
+
+          <Card>
+            <SectionTitle>Postagens ({posts.length})</SectionTitle>
+            {posts.length === 0 && <p>Sem tweets ainda.</p>}
+            {posts.map(p => (
+              <PostCard key={p.id}>
+                <PostHead>
+                  {new Date(p.created_at).toLocaleString("pt-BR")}
+                  {p.parent_detail && <> — Retweet de {p.parent_detail.user}</>}
+                </PostHead>
+                <div style={{fontSize: "1rem", color: "#17203c"}}>{p.content}</div>
+                <div style={{marginTop: ".35rem", fontSize: ".9rem", color:"#5b667e"}}>
+                  ❤️ {p.likes_count} · 💬 {p.comments_count}
+                </div>
+              </PostCard>
+            ))}
+          </Card>
+        </div>
 
         {/* COLUNA DIREITA – Social + Edição */}
         <div style={{display:"grid", gap: "1rem"}}>
