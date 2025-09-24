@@ -9,5 +9,4 @@ urlpatterns = [
     path("api/", include("posts.urls")),
 ]
 
-# Sirva arquivos de mídia (uploads) no Heroku
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

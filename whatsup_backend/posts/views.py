@@ -15,15 +15,12 @@ from .serializers import (
 )
 from .permissions import IsOwnerOrReadOnly
 
-
-
 class PostListCreateView(generics.ListCreateAPIView):
     queryset = Post.objects.select_related("user").order_by("-created_at")
     serializer_class = PostSerializer
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
     def get_permissions(self):
-        # POST exige login; GET é público
         if self.request.method == "POST":
             return [IsAuthenticated()]
         return [permissions.AllowAny()]
