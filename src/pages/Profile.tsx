@@ -2,10 +2,9 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
-import api from "../services/api";
+import api, { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import fotoAvatar from "../foto_avatar.avif"
-import { resolveMediaUrl } from "../services/api";
+import fotoAvatar from "../foto_avatar.avif";
 
 interface MiniUser { username: string; photo: string | null }
 interface Post {
@@ -18,6 +17,8 @@ interface ProfileData {
   following: MiniUser[]; followers: MiniUser[];
   following_count: number; followers_count: number; posts: Post[];
 }
+
+/* ==================== STYLES ==================== */
 
 const Page = styled.div`
   max-width: 1000px;
@@ -46,43 +47,23 @@ const Avatar = styled.img`
 
 const Title = styled.div`
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  h1 {
-    margin: 0; font-size: 1.6rem; color: #1f2a44;
-  }
+  h1 { margin: 0; font-size: 1.6rem; color: #1f2a44; }
 `;
 
-const Chips = styled.div`
-  display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap;
-`;
-
-const Chip = styled.span`
-  background: #fff; border: 1px solid #e7ebf5; color: #2b3551;
-  border-radius: 999px; padding: .35rem .7rem; font-size: .85rem; font-weight: 600;
-`;
-
-const Bio = styled.p`
-  margin: .5rem 0 0; color: #475067; line-height: 1.4;
-`;
+const Chips = styled.div` display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; `;
+const Chip  = styled.span` background: #fff; border: 1px solid #e7ebf5; color: #2b3551;
+  border-radius: 999px; padding: .35rem .7rem; font-size: .85rem; font-weight: 600; `;
+const Bio   = styled.p` margin: .5rem 0 0; color: #475067; line-height: 1.4; `;
 
 const Grid = styled.div`
   display: grid; gap: 1rem; margin-top: 1rem;
   grid-template-columns: 1fr;
-  @media (min-width: 900px) {
-    grid-template-columns: 1.2fr .8fr; /* conteúdo + lateral */
-  }
+  @media (min-width: 900px) { grid-template-columns: 1.2fr .8fr; }
 `;
 
-const Card = styled.div`
-  background: #fff; border: 1px solid #e9edf5; border-radius: 12px; padding: 1rem;
-`;
-
-const SectionTitle = styled.h2`
-  margin: 0 0 .75rem; font-size: 1.1rem; color: #1f2a44;
-`;
-
-const List = styled.ul`
-  list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem;
-`;
+const Card = styled.div` background: #fff; border: 1px solid #e9edf5; border-radius: 12px; padding: 1rem; `;
+const SectionTitle = styled.h2` margin: 0 0 .75rem; font-size: 1.1rem; color: #1f2a44; `;
+const List = styled.ul` list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; `;
 
 const UserPill = styled.li`
   display: flex; align-items: center; gap: .6rem;
@@ -90,18 +71,10 @@ const UserPill = styled.li`
   img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
 `;
 
-const PostCard = styled.div`
-  border: 1px solid #eef1f7; border-radius: 10px; padding: .8rem;
-  &:not(:last-child){ margin-bottom: .6rem; }
-`;
-
-const PostHead = styled.div`
-  font-size: .85rem; color: #667088; margin-bottom: .4rem;
-`;
-
-const Actions = styled.div`
-  display: flex; gap: .6rem; flex-wrap: wrap;
-`;
+const PostCard = styled.div` border: 1px solid #eef1f7; border-radius: 10px; padding: .8rem;
+  &:not(:last-child){ margin-bottom: .6rem; } `;
+const PostHead = styled.div` font-size: .85rem; color: #667088; margin-bottom: .4rem; `;
+const Actions = styled.div` display: flex; gap: .6rem; flex-wrap: wrap; `;
 
 const Button = styled.button<{variant?: "primary" | "ghost"}>`
   appearance: none; border: none; cursor: pointer;
@@ -112,39 +85,26 @@ const Button = styled.button<{variant?: "primary" | "ghost"}>`
   &:hover { opacity: .95; }
 `;
 
-const Form = styled.form`
-  display: grid; gap: .8rem;
-`;
-
-const Label = styled.label`
-  display: grid; gap: .35rem; font-size: .9rem; color: #2e3856;
-`;
-
+const Form = styled.form` display: grid; gap: .8rem; `;
+const Label = styled.label` display: grid; gap: .35rem; font-size: .9rem; color: #2e3856; `;
 const Input = styled.input`
   padding: .65rem .75rem; border-radius: 10px; border: 1px solid #dfe3ee;
   font-size: .95rem; outline: none;
   &:focus { border-color: #5865f2; box-shadow: 0 0 0 3px rgba(88,101,242,.12); }
 `;
-
 const TextArea = styled.textarea`
   padding: .65rem .75rem; border-radius: 10px; border: 1px solid #dfe3ee;
   font-size: .95rem; min-height: 90px; resize: vertical; outline: none;
   &:focus { border-color: #5865f2; box-shadow: 0 0 0 3px rgba(88,101,242,.12); }
 `;
-
-const UploadRow = styled.div`
-  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
-`;
-
-const HiddenFile = styled.input.attrs({ type: "file" })`
-  display: none;
-`;
-
-const UploadButton = styled.label`
+const UploadRow   = styled.div` display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; `;
+const HiddenFile  = styled.input.attrs({ type: "file" })` display: none; `;
+const UploadButton= styled.label`
   background: #eef3ff; color: #1f4cff; border: 1px dashed #cbd7ff;
   padding: .55rem .9rem; border-radius: 10px; cursor: pointer; font-weight: 600;
 `;
 
+/* ==================== COMPONENT ==================== */
 
 export default function Profile() {
   const { username: loggedUser, logout } = useAuth();
@@ -152,12 +112,13 @@ export default function Profile() {
   const isMe = !routeUsername || routeUsername === loggedUser;
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
-  const [email, setEmail]       = useState("");
-  const [bioText, setBioText]   = useState("");
+  const [email, setEmail]     = useState("");
+  const [bioText, setBioText] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null); // preview local
 
   const normalize = (d: Partial<ProfileData>): ProfileData => {
     const following = d.following ?? [];
@@ -178,7 +139,7 @@ export default function Profile() {
     const fetchProfile = async () => {
       setLoading(true); setError(null);
       try {
-        const path = isMe ? "profile/me/" : `profile/${routeUsername}/`;
+        const path = isMe ? "/profile/me/" : `/profile/${routeUsername}/`;
         const { data } = await api.get<Partial<ProfileData>>(path);
         const p = normalize(data);
         setProfile(p);
@@ -190,8 +151,11 @@ export default function Profile() {
     fetchProfile();
   }, [routeUsername, isMe]);
 
+  // Preview local
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) setPhotoFile(e.target.files[0]);
+    const f = e.target.files?.[0] || null;
+    setPhotoFile(f);
+    setPhotoPreview(f ? URL.createObjectURL(f) : null);
   };
 
   const handleSave = async (e: FormEvent) => {
@@ -203,9 +167,14 @@ export default function Profile() {
       form.append("email", email);
       form.append("bio", bioText);
       if (photoFile) form.append("photo", photoFile);
-      await api.patch("profile/me/", form, { headers: { "Content-Type": "multipart/form-data" }});
-      const { data } = await api.get<Partial<ProfileData>>("profile/me/");
+
+      // NÃO force Content-Type; o Axios coloca o boundary correto
+      await api.patch("/profile/me/", form);
+
+      // refetch para pegar URL absoluta atualizada
+      const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
       setProfile(normalize(data));
+      setPhotoPreview(null);
       alert("Perfil atualizado!");
     } catch (e: any) {
       setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao atualizar perfil.");
@@ -214,14 +183,14 @@ export default function Profile() {
 
   const toggleFollow = async () => {
     if (isMe || !routeUsername) return;
-    await api.post(`profile/${routeUsername}/follow/`);
-    const { data } = await api.get<Partial<ProfileData>>(`profile/${routeUsername}/`);
+    await api.post(`/profile/${routeUsername}/follow/`);
+    const { data } = await api.get<Partial<ProfileData>>(`/profile/${routeUsername}/`);
     setProfile(normalize(data));
   };
 
-  if (loading) return <Page><Card>Carregando perfil…</Card></Page>;
-  if (error)   return <Page><Card>Erro: {error}</Card></Page>;
-  if (!profile) return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
+  if (loading)   return <Page><Card>Carregando perfil…</Card></Page>;
+  if (error)     return <Page><Card>Erro: {error}</Card></Page>;
+  if (!profile)  return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
 
   const following = profile.following ?? [];
   const followers = profile.followers ?? [];
@@ -231,7 +200,11 @@ export default function Profile() {
     <Page>
       {/* HEADER */}
       <HeaderCard>
-        <Avatar src={resolveMediaUrl(profile.photo) || fotoAvatar} alt="avatar" />
+        <Avatar
+          src={photoPreview || resolveMediaUrl(profile.photo) || fotoAvatar}
+          alt="avatar"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = fotoAvatar; }}
+        />
         <div>
           <Title>
             <h1>@{profile.username}</h1>
@@ -283,7 +256,11 @@ export default function Profile() {
               <List>
                 {following.map(u => (
                   <UserPill key={u.username}>
-                    <img src={u.photo || "/default-avatar.png"} alt="" />
+                    <img
+                      src={resolveMediaUrl(u.photo) || "/default-avatar.png"}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/default-avatar.png"; }}
+                      alt=""
+                    />
                     <Link to={`/profile/${u.username}`}>@{u.username}</Link>
                   </UserPill>
                 ))}
@@ -299,7 +276,11 @@ export default function Profile() {
               <List>
                 {followers.map(u => (
                   <UserPill key={u.username}>
-                    <img src={u.photo || "/default-avatar.png"} alt="" />
+                    <img
+                      src={resolveMediaUrl(u.photo) || "/default-avatar.png"}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/default-avatar.png"; }}
+                      alt=""
+                    />
                     <Link to={`/profile/${u.username}`}>@{u.username}</Link>
                   </UserPill>
                 ))}

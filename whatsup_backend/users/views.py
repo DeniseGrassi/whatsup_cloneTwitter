@@ -40,7 +40,7 @@ class LoginView(APIView):
 
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser)  # aceita upload multipart
+    parser_classes = (MultiPartParser, FormParser)  
 
     def get(self, request):
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
@@ -52,7 +52,6 @@ class UserProfileView(APIView):
         ser = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
         if ser.is_valid():
             ser.save()
-            # responde usando o serializer de leitura (URL absoluta da foto)
             data = UserProfileSerializer(profile, context={"request": request}).data
             return Response(data)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
