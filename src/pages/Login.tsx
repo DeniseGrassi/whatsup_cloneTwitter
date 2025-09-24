@@ -67,7 +67,7 @@ const ErrorMessage = styled.p`
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth(); // usa o contexto!
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +76,8 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      await login(username, password);               // seta token no contexto
-      navigate(`/profile/${username}`);              // ou navigate('/feed')
+      await login(username, password);           
+      navigate(`/profile/${username}`);             
     } catch {
       setError('Usuário ou senha inválidos');
     }

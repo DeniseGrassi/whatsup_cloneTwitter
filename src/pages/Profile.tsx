@@ -1,4 +1,4 @@
-// src/pages/Profile.tsx
+
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
@@ -118,7 +118,7 @@ export default function Profile() {
   const [email, setEmail]     = useState("");
   const [bioText, setBioText] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null); // preview local
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const normalize = (d: Partial<ProfileData>): ProfileData => {
     const following = d.following ?? [];
@@ -168,10 +168,10 @@ export default function Profile() {
       form.append("bio", bioText);
       if (photoFile) form.append("photo", photoFile);
 
-      // NÃO force Content-Type; o Axios coloca o boundary correto
+
       await api.patch("/profile/me/", form);
 
-      // refetch para pegar URL absoluta atualizada
+
       const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
       setProfile(normalize(data));
       setPhotoPreview(null);
@@ -198,7 +198,6 @@ export default function Profile() {
 
   return (
     <Page>
-      {/* HEADER */}
       <HeaderCard>
         <Avatar
           src={photoPreview || resolveMediaUrl(profile.photo) || fotoAvatar}

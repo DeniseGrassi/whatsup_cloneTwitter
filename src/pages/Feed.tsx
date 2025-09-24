@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { Edit2, Trash2 } from 'lucide-react'
-// import { AuthContext } from '../context/AuthContext'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext';
 
