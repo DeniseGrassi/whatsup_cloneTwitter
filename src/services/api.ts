@@ -24,6 +24,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// 👇 Expor no window para debug no navegador
+if (typeof window !== "undefined") {
+  (window as any).__API_BASE_URL__ = BASE_URL;
+  (window as any).api = api;
+}
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {
