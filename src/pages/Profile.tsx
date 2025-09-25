@@ -1,9 +1,14 @@
-import React, { useEffect, useState, ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import React, { useEffect, useState, ChangeEvent, FormEvent, KeyboardEvent, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import styled from "styled-components";
 import api, { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import fotoAvatar from "../foto_avatar.avif";
+
+
+
+
+
 
 interface MiniUser { username: string; photo: string | null }
 interface Post {
@@ -183,20 +188,28 @@ export default function Profile() {
     e.preventDefault();
     if (!isMe) return;
     setError(null);
+
     try {
       const form = new FormData();
       form.append("email", email);
       form.append("bio", bioText);
       if (photoFile) form.append("photo", photoFile);
+
       await api.patch("/profile/me/", form);
       await refetchMe();
+
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhotoFile(null);
       setPhotoPreview(null);
+
       alert("Perfil atualizado!");
     } catch (e: any) {
       setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao atualizar perfil.");
     }
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // criar post
   const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
 
@@ -208,7 +221,7 @@ export default function Profile() {
       const { data } = await api.post("/posts/", { content: newPost.trim() });
       setNewPost("");
 
-      // update otimista: injeta novo post no topo
+
       setProfile(prev =>
         prev ? { ...prev, posts: [data as Post, ...prev.posts] } : prev
       );
@@ -234,12 +247,12 @@ export default function Profile() {
   };
 
   if (loading) return <Page><Card>Carregando perfil…</Card></Page>;
-  if (error)   return <Page><Card>Erro: {error}</Card></Page>;
+  if (error) return <Page><Card>Erro: {error}</Card></Page>;
   if (!profile) return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
 
   const following = profile.following ?? [];
   const followers = profile.followers ?? [];
-  const posts     = profile.posts ?? [];
+  const posts = profile.posts ?? [];
 
   return (
     <Page>
@@ -283,6 +296,7 @@ export default function Profile() {
                 placeholder="O que está acontecendo?"
                 maxLength={MAX_LEN + 20}
               />
+
               <ComposerFooter>
                 <Counter bad={newPost.length > MAX_LEN}>
                   {newPost.length}/{MAX_LEN}
@@ -369,7 +383,13 @@ export default function Profile() {
                 <Label>
                   Foto de perfil
                   <UploadRow>
-                    <HiddenFile id="photo-file" accept="image/*" onChange={handlePhotoChange} />
+                    <HiddenFile
+                      ref={fileInputRef}
+                      id="photo-file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                    />
+
                     <UploadButton htmlFor="photo-file">Escolher arquivo</UploadButton>
                     {photoFile && <span>{photoFile.name}</span>}
                   </UploadRow>
