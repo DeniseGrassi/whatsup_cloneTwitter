@@ -1,14 +1,11 @@
 import os
 from pathlib import Path
 import dj_database_url
-
+import os
+CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# -------------------------------------------------
-# Segurança / Debug
-# -------------------------------------------------
-# Em produção, configure no Heroku:
-#   heroku config:set DEBUG=False
+
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # Em produção, **não** deixe a SECRET_KEY hard-coded!
@@ -39,6 +36,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "cloudinary",
+    "cloudinary_storage",
 
     # Terceiros
     "corsheaders",
@@ -146,12 +145,11 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Django 4.2+: use STORAGES em vez de STATICFILES_STORAGE
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    "default": {  # <- uploads (MEDIA) vão para a Cloudinary
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
-    "staticfiles": {
+    "staticfiles": {  # seus estáticos continuam no Whitenoise
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
@@ -167,7 +165,14 @@ CSRF_COOKIE_SECURE = not DEBUG
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# -------------------------------------------------
-# PK default
-# -------------------------------------------------
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# settings.py
+
+INSTALLED_APPS += ["cloudinary", "cloudinary_storage"]
+
+
+
+

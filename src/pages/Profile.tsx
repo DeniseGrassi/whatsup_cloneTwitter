@@ -5,11 +5,6 @@ import api, { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import fotoAvatar from "../foto_avatar.avif";
 
-
-
-
-
-
 interface MiniUser { username: string; photo: string | null }
 interface Post {
   id: number; user: string; content: string; created_at: string;
