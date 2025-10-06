@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { Edit2, Trash2 } from 'lucide-react';
 import api from '../services/api';
@@ -13,6 +13,57 @@ const Container = styled.div`
 const Title = styled.h1`
   color: #0077ff;
   margin-bottom: 1rem;
+`;
+
+const Composer = styled.form`
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+
+  textarea {
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    outline: none;
+
+    &:focus {
+      border-color: #0077ff;
+      background: #f8fbff;
+    }
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: .5rem;
+    color: #999;
+
+    button {
+      background: #0077ff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: .5rem .9rem;
+      cursor: pointer;
+      font-weight: 600;
+      opacity: .95;
+      transition: .2s;
+    }
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      opacity: 1;
+    }
+  }
 `;
 
 const PostCard = styled.div`
@@ -80,14 +131,27 @@ export default function Feed() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // composer
+  const [text, setText] = useState('');
+  const [publishing, setPublishing] = useState(false);
+
+  // para cancelar requests ao desmontar
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchPosts = useCallback(async () => {
     if (!token) return; // ainda não logou
     try {
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
       setLoading(true);
       setError(null);
-      const { data } = await api.get<Post[]>('/posts/feed/');
+      const { data } = await api.get<Post[]>('/posts/feed/', {
+        signal: abortRef.current.signal,
+      });
       setPosts(data);
     } catch (e: any) {
+      if (e?.name === 'CanceledError' || e?.message === 'canceled') return;
       const msg = e?.response?.status
         ? `Erro ${e.response.status} ao carregar o feed.`
         : 'Não foi possível carregar o feed.';
@@ -100,12 +164,25 @@ export default function Feed() {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
+  // quando a aba volta a ficar visível, atualiza
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        fetchPosts();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [fetchPosts]);
+
+  // --- ações ---
+
   const handleDelete = async (id: number) => {
     if (!window.confirm('Confirma exclusão deste tweet?')) return;
     try {
       await api.delete(`/posts/${id}/`);
-      // otimista
-      setPosts(prev => prev.filter(p => p.id !== id));
+      // sincroniza com servidor (evita divergência)
+      await fetchPosts();
     } catch (e: any) {
       alert(e?.response?.status ? `Erro ${e.response.status} ao excluir.` : 'Erro ao excluir o tweet.');
     }
@@ -118,10 +195,26 @@ export default function Feed() {
     if (!value || value === post.content) return;
     try {
       await api.patch(`/posts/${post.id}/`, { content: value });
-      // otimista
-      setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, content: value } : p)));
+      await fetchPosts(); // sincroniza
     } catch (e: any) {
       alert(e?.response?.status ? `Erro ${e.response.status} ao editar.` : 'Erro ao editar o tweet.');
+    }
+  };
+
+  const handlePublish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const content = text.trim();
+    if (!content) return;
+    try {
+      setPublishing(true);
+      await api.post('/posts/', { content });
+      setText('');
+      // pega do servidor para garantir persistência
+      await fetchPosts();
+    } catch (e: any) {
+      alert(e?.response?.status ? `Erro ${e.response.status} ao publicar.` : 'Erro ao publicar.');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -137,6 +230,22 @@ export default function Feed() {
   return (
     <Container>
       <Title>Feed</Title>
+
+      {/* Composer */}
+      <Composer onSubmit={handlePublish}>
+        <textarea
+          placeholder="O que está acontecendo?"
+          maxLength={280}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <div className="row">
+          <small>{text.length}/280</small>
+          <button type="submit" disabled={publishing || !text.trim()}>
+            {publishing ? 'Publicando…' : 'Publicar'}
+          </button>
+        </div>
+      </Composer>
 
       {loading && <p>Carregando posts…</p>}
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
