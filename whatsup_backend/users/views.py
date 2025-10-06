@@ -14,6 +14,7 @@ from .serializers import (
     UserProfileUpdateSerializer,
 )
 
+
 User = get_user_model()
 
 

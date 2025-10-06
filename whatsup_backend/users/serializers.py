@@ -1,3 +1,4 @@
+# users/serializers.py
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import UserProfile
@@ -24,7 +25,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data.get("email"),
             password=validated_data["password"],
         )
-        
+        # cria o perfil junto
         UserProfile.objects.get_or_create(user=user)
         return user
 
@@ -46,11 +47,10 @@ class UserMiniSerializer(serializers.ModelSerializer):
         if not obj.photo:
             return None
         request = self.context.get("request")
-        url = obj.photo.url  
+        url = obj.photo.url
         return request.build_absolute_uri(url) if request else url
 
 
-# --------- Serializer de LEITURA ----------
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
@@ -86,29 +86,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(url) if request else url
 
 
-    class UserProfileUpdateSerializer(serializers.ModelSerializer):
-        email = serializers.EmailField(source="user.email", required=False)
-        bio = serializers.CharField(required=False, allow_blank=True)
-        photo = serializers.ImageField(required=False, allow_null=True)
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    # campos editáveis:
+    email = serializers.EmailField(source="user.email", required=False)
+    bio = serializers.CharField(required=False, allow_blank=True)
+    photo = serializers.ImageField(required=False, allow_null=True)
 
-        class Meta:
-            model = UserProfile
-            fields = ["email", "bio", "photo"]
+    class Meta:
+        model = UserProfile
+        fields = ["email", "bio", "photo"]
 
-        def update(self, instance, validated_data):
-            # Atualiza User (e-mail)
-            user_data = validated_data.pop("user", {})
-            for attr, value in user_data.items():
-                setattr(instance.user, attr, value)
-            instance.user.save()            
-            
-            if "photo" in validated_data and not validated_data["photo"]:
-                validated_data.pop("photo")
-            
-            remove = self.context["request"].data.get("remove_photo")
-            if str(remove).lower() in {"1", "true", "yes"}:
-                if instance.photo:
-                    instance.photo.delete(save=False)
-                instance.photo = None
-
-            return super().update(instance, validated_data)
+    def update(self, instance, validated_data):
+        # atualiza User (e-mail)
+        user_data = validated_data.pop("user", {})
+        for attr, value in user_data.items():
+            setattr(instance.user, attr, value)
+        instance.user.save()
+        # atualiza Profile (bio/foto)
+        return super().update(instance, validated_data)
