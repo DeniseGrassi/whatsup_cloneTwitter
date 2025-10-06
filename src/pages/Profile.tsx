@@ -4,6 +4,8 @@ import styled from "styled-components";
 import api, { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import fotoAvatar from "../foto_avatar.avif";
+import { Trash2 } from "lucide-react";
+
 
 /* ------------ Tipos ------------ */
 interface MiniUser { username: string; photo: string | null }
@@ -31,21 +33,42 @@ const Card = styled.div`background:#fff;border:1px solid #e9edf5;border-radius:1
 const SectionTitle = styled.h2`margin:0 0 .75rem;font-size:1.1rem;color:#1f2a44;`;
 const List = styled.ul`list-style:none;padding:0;margin:0;display:grid;gap:.5rem;`;
 const UserPill = styled.li`display:flex;align-items:center;gap:.6rem;a{color:#1f4cff;font-weight:600;text-decoration:none;}img{width:28px;height:28px;border-radius:50%;object-fit:cover;}`;
-const PostCard = styled.div`border:1px solid #eef1f7;border-radius:10px;padding:.8rem;&:not(:last-child){margin-bottom:.6rem;}`;
+const PostCard = styled.div`position: relative; border:1px solid #eef1f7;border-radius:10px;padding:.8rem;&:not(:last-child){margin-bottom:.6rem;}`;
 const PostHead = styled.div`font-size:.85rem;color:#667088;margin-bottom:.4rem;`;
 const Actions = styled.div`display:flex;gap:.6rem;flex-wrap:wrap;`;
-const Button = styled.button<{variant?: "primary" | "ghost"}>`appearance:none;border:none;cursor:pointer;font-size:.95rem;font-weight:600;padding:.55rem .9rem;border-radius:10px;color:${p=>p.variant==="ghost"?"#1f4cff":"#fff"};background:${p=>p.variant==="ghost"?"#eef3ff":"#5865f2"};&:hover{opacity:.95}&:disabled{opacity:.6;cursor:not-allowed}`;
+const Button = styled.button<{ variant?: "primary" | "ghost" }>`appearance:none;border:none;cursor:pointer;font-size:.95rem;font-weight:600;padding:.55rem .9rem;border-radius:10px;color:${p => p.variant === "ghost" ? "#1f4cff" : "#fff"};background:${p => p.variant === "ghost" ? "#eef3ff" : "#5865f2"};&:hover{opacity:.95}&:disabled{opacity:.6;cursor:not-allowed}`;
 const Form = styled.form`display:grid;gap:.8rem;`;
 const Label = styled.label`display:grid;gap:.35rem;font-size:.9rem;color:#2e3856;`;
 const Input = styled.input`padding:.65rem .75rem;border-radius:10px;border:1px solid #dfe3ee;font-size:.95rem;outline:none;&:focus{border-color:#5865f2;box-shadow:0 0 0 3px rgba(88,101,242,.12);}`;
 const TextArea = styled.textarea`padding:.65rem .75rem;border-radius:10px;border:1px solid #dfe3ee;font-size:.95rem;min-height:90px;resize:vertical;outline:none;&:focus{border-color:#5865f2;box-shadow:0 0 0 3px rgba(88,101,242,.12);}`;
 const UploadRow = styled.div`display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;`;
-const HiddenFile = styled.input.attrs({type:"file"})`display:none;`;
+const HiddenFile = styled.input.attrs({ type: "file" })`display:none;`;
 const UploadButton = styled.label`background:#eef3ff;color:#1f4cff;border:1px dashed #cbd7ff;padding:.55rem .9rem;border-radius:10px;cursor:pointer;font-weight:600;`;
 const ComposerCard = styled(Card)`padding:.75rem 1rem;`;
 const ComposerText = styled(TextArea)`min-height:80px;`;
 const ComposerFooter = styled.div`display:flex;align-items:center;justify-content:space-between;gap:.75rem;`;
-const Counter = styled.span<{bad?:boolean}>`font-size:.85rem;color:${p=>p.bad?"#d32f2f":"#5b667e"};`;
+const Counter = styled.span<{ bad?: boolean }>`font-size:.85rem;color:${p => p.bad ? "#d32f2f" : "#5b667e"};`;
+
+const PostActions = styled.div`
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  display: flex;
+  gap: .4rem;
+`;
+
+const IconBtn = styled.button`
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px;
+  color: #6b7280;
+  border-radius: 8px;
+  &:hover { color: #ef4444; background: #f3f4f6; }
+  &:disabled { opacity: .5; cursor: default; }
+`;
+
 
 /* ------------ Componente ------------ */
 const MAX_LEN = 280;
@@ -70,6 +93,8 @@ export default function Profile() {
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
 
   const normalize = (d: Partial<ProfileData>): ProfileData => ({
     username: d.username ?? "",
@@ -92,13 +117,13 @@ export default function Profile() {
       const r = await api.get<Post[]>(`/posts/?user=${encodeURIComponent(usernameToLoad)}`);
       setPosts(r.data);
       return;
-    } catch {}
+    } catch { }
 
     try {
       const r2 = await api.get<Post[]>(`/posts/user/${encodeURIComponent(usernameToLoad)}/`);
       setPosts(r2.data);
       return;
-    } catch {}
+    } catch { }
 
     try {
       const r3 = await api.get<Post[]>(`/posts/feed/`);
@@ -222,6 +247,20 @@ export default function Profile() {
   if (error) return <Page><Card>Erro: {error}</Card></Page>;
   if (!profile) return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
 
+  const handleDeletePost = async (postId: number) => {
+    if (!window.confirm("Apagar este post?")) return;
+    try {
+      setDeletingId(postId);
+      await api.delete(`/posts/${postId}/`);
+      setPosts(prev => prev.filter(p => p.id !== postId)); // some do UI
+    } catch (e: any) {
+      alert(e?.response?.status ? `Erro ${e.response.status} ao excluir.` : "Falha ao excluir.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+
   return (
     <Page>
       <HeaderCard>
@@ -279,7 +318,21 @@ export default function Profile() {
             <SectionTitle>Postagens ({posts.length})</SectionTitle>
             {posts.length === 0 && <p>Sem tweets ainda.</p>}
             {posts.map(p => (
+
               <PostCard key={p.id}>
+                {/* mostra o botão só nos seus próprios posts */}
+                {isMe && p.user === profile.username && (
+                  <PostActions>
+                    <IconBtn
+                      onClick={() => handleDeletePost(p.id)}
+                      title="Apagar"
+                      disabled={deletingId === p.id}
+                    >
+                      <Trash2 size={16} />
+                    </IconBtn>
+                  </PostActions>
+                )}
+
                 <PostHead>
                   {new Date(p.created_at).toLocaleString("pt-BR")}
                   {p.parent_detail && <> — Retweet de {p.parent_detail.user}</>}
@@ -289,6 +342,7 @@ export default function Profile() {
                   ❤️ {p.likes_count} · 💬 {p.comments_count}
                 </div>
               </PostCard>
+
             ))}
           </Card>
         </div>
