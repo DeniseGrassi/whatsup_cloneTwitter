@@ -5,7 +5,7 @@ const RAW_BASE_URL =
     ? (import.meta as any)?.env?.VITE_API_BASE_URL
     : undefined) ||
   process.env.REACT_APP_API_URL ||
-  "http://127.0.0.1:8000/api";
+  "https://whatsup-backend-c00eef392a0f.herokuapp.com/api";
 
 
 const BASE_URL = String(RAW_BASE_URL).replace(/\/+$/, "");
@@ -13,7 +13,6 @@ const BASE_URL = String(RAW_BASE_URL).replace(/\/+$/, "");
 
 const api = axios.create({
   baseURL: BASE_URL,
-
 });
 
 api.interceptors.request.use((config) => {
@@ -24,7 +23,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 👇 Expor no window para debug no navegador
+
 if (typeof window !== "undefined") {
   (window as any).__API_BASE_URL__ = BASE_URL;
   (window as any).api = api;

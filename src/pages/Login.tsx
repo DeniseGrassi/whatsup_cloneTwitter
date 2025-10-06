@@ -75,13 +75,19 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const ident = username.trim();
+
     try {
-      await login(username, password);           
-      navigate(`/profile/${username}`);             
+      const realUsername = await login(ident, password);
+      localStorage.setItem("username", realUsername);
+      navigate(`/profile/${realUsername}`);
     } catch {
-      setError('Usuário ou senha inválidos');
+      setError("Usuário ou senha inválidos");
     }
   };
+
+
 
   return (
     <Container>

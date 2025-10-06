@@ -5,6 +5,8 @@ import os
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from corsheaders.defaults import default_headers, default_methods
+
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
@@ -55,9 +57,9 @@ INSTALLED_APPS = [
 # -------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  
+    "corsheaders.middleware.CorsMiddleware",          
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -65,23 +67,36 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+
 # -------------------------------------------------
 # CORS / CSRF (frontend Vercel)
 # -------------------------------------------------
 CORS_ALLOWED_ORIGINS = [
-    "https://whatsup-topaz.vercel.app",  
+    "https://whatsup-topaz.vercel.app",
+    "http://localhost:3000",        
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",        
+    "http://127.0.0.1:5173",
 ]
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.vercel\.app$",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://whatsup-topaz.vercel.app",
-    "https://*.vercel.app",
-    "https://*.herokuapp.com",
-    "https://localhost",
-    "https://127.0.0.1",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://whatsup-backend-c00eef392a0f.herokuapp.com",
 ]
+
+
+
+CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
+CORS_ALLOW_METHODS = list(default_methods)
+
 
 # -------------------------------------------------
 # URLs / Templates / WSGI
@@ -169,9 +184,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-# settings.py
-
-INSTALLED_APPS += ["cloudinary", "cloudinary_storage"]
 
 
 

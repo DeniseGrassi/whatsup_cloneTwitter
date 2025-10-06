@@ -29,9 +29,16 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     def post(self, request):
-        username = request.data.get("username")
+        username_or_email = request.data.get("username")
         password = request.data.get("password")
-        user = authenticate(username=username, password=password)
+
+        # permite e-mail
+        if "@" in (username_or_email or ""):
+            user = User.objects.filter(email__iexact=username_or_email).first()
+            if user:
+                username_or_email = user.username
+
+        user = authenticate(username=username_or_email, password=password)
         if user is not None:
             token, _ = Token.objects.get_or_create(user=user)
             return Response({"token": token.key})
