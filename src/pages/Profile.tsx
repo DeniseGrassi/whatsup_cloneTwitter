@@ -5,6 +5,7 @@ import api, { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import fotoAvatar from "../foto_avatar.avif";
 
+/* ------------ Tipos ------------ */
 interface MiniUser { username: string; photo: string | null }
 interface Post {
   id: number; user: string; content: string; created_at: string;
@@ -14,108 +15,39 @@ interface Post {
 interface ProfileData {
   username: string; email: string; bio: string; photo: string | null;
   following: MiniUser[]; followers: MiniUser[];
-  following_count: number; followers_count: number; posts: Post[];
+  following_count: number; followers_count: number;
 }
 
-/* ==================== STYLES ==================== */
+/* ------------ Estilos (iguais) ------------ */
+const Page = styled.div`max-width:1000px;margin:2rem auto;padding:0 1rem 3rem;`;
+const HeaderCard = styled.div`background:linear-gradient(135deg,#eef3ff 0%,#f6f8ff 100%);border:1px solid #e6e9f5;border-radius:16px;padding:1.25rem;display:grid;grid-template-columns:96px 1fr;gap:1rem;align-items:center;`;
+const Avatar = styled.img`width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 4px 20px rgba(88,101,242,.15);`;
+const Title = styled.div`display:flex;align-items:center;justify-content:space-between;gap:1rem;h1{margin:0;font-size:1.6rem;color:#1f2a44;}`;
+const Chips = styled.div`display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap;`;
+const Chip = styled.span`background:#fff;border:1px solid #e7ebf5;color:#2b3551;border-radius:999px;padding:.35rem .7rem;font-size:.85rem;font-weight:600;`;
+const Bio = styled.p`margin:.5rem 0 0;color:#475067;line-height:1.4;`;
+const Grid = styled.div`display:grid;gap:1rem;margin-top:1rem;grid-template-columns:1fr;@media(min-width:900px){grid-template-columns:1.2fr .8fr;}`;
+const Card = styled.div`background:#fff;border:1px solid #e9edf5;border-radius:12px;padding:1rem;`;
+const SectionTitle = styled.h2`margin:0 0 .75rem;font-size:1.1rem;color:#1f2a44;`;
+const List = styled.ul`list-style:none;padding:0;margin:0;display:grid;gap:.5rem;`;
+const UserPill = styled.li`display:flex;align-items:center;gap:.6rem;a{color:#1f4cff;font-weight:600;text-decoration:none;}img{width:28px;height:28px;border-radius:50%;object-fit:cover;}`;
+const PostCard = styled.div`border:1px solid #eef1f7;border-radius:10px;padding:.8rem;&:not(:last-child){margin-bottom:.6rem;}`;
+const PostHead = styled.div`font-size:.85rem;color:#667088;margin-bottom:.4rem;`;
+const Actions = styled.div`display:flex;gap:.6rem;flex-wrap:wrap;`;
+const Button = styled.button<{variant?: "primary" | "ghost"}>`appearance:none;border:none;cursor:pointer;font-size:.95rem;font-weight:600;padding:.55rem .9rem;border-radius:10px;color:${p=>p.variant==="ghost"?"#1f4cff":"#fff"};background:${p=>p.variant==="ghost"?"#eef3ff":"#5865f2"};&:hover{opacity:.95}&:disabled{opacity:.6;cursor:not-allowed}`;
+const Form = styled.form`display:grid;gap:.8rem;`;
+const Label = styled.label`display:grid;gap:.35rem;font-size:.9rem;color:#2e3856;`;
+const Input = styled.input`padding:.65rem .75rem;border-radius:10px;border:1px solid #dfe3ee;font-size:.95rem;outline:none;&:focus{border-color:#5865f2;box-shadow:0 0 0 3px rgba(88,101,242,.12);}`;
+const TextArea = styled.textarea`padding:.65rem .75rem;border-radius:10px;border:1px solid #dfe3ee;font-size:.95rem;min-height:90px;resize:vertical;outline:none;&:focus{border-color:#5865f2;box-shadow:0 0 0 3px rgba(88,101,242,.12);}`;
+const UploadRow = styled.div`display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;`;
+const HiddenFile = styled.input.attrs({type:"file"})`display:none;`;
+const UploadButton = styled.label`background:#eef3ff;color:#1f4cff;border:1px dashed #cbd7ff;padding:.55rem .9rem;border-radius:10px;cursor:pointer;font-weight:600;`;
+const ComposerCard = styled(Card)`padding:.75rem 1rem;`;
+const ComposerText = styled(TextArea)`min-height:80px;`;
+const ComposerFooter = styled.div`display:flex;align-items:center;justify-content:space-between;gap:.75rem;`;
+const Counter = styled.span<{bad?:boolean}>`font-size:.85rem;color:${p=>p.bad?"#d32f2f":"#5b667e"};`;
 
-const Page = styled.div`
-  max-width: 1000px;
-  margin: 2rem auto;
-  padding: 0 1rem 3rem;
-`;
-
-const HeaderCard = styled.div`
-  background: linear-gradient(135deg, #eef3ff 0%, #f6f8ff 100%);
-  border: 1px solid #e6e9f5;
-  border-radius: 16px;
-  padding: 1.25rem;
-  display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 1rem;
-  align-items: center;
-`;
-
-const Avatar = styled.img`
-  width: 96px; height: 96px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid #fff;
-  box-shadow: 0 4px 20px rgba(88,101,242,0.15);
-`;
-
-const Title = styled.div`
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  h1 { margin: 0; font-size: 1.6rem; color: #1f2a44; }
-`;
-
-const Chips = styled.div` display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; `;
-const Chip = styled.span` background: #fff; border: 1px solid #e7ebf5; color: #2b3551;
-  border-radius: 999px; padding: .35rem .7rem; font-size: .85rem; font-weight: 600; `;
-const Bio = styled.p` margin: .5rem 0 0; color: #475067; line-height: 1.4; `;
-
-const Grid = styled.div`
-  display: grid; gap: 1rem; margin-top: 1rem;
-  grid-template-columns: 1fr;
-  @media (min-width: 900px) { grid-template-columns: 1.2fr .8fr; }
-`;
-
-const Card = styled.div` background: #fff; border: 1px solid #e9edf5; border-radius: 12px; padding: 1rem; `;
-const SectionTitle = styled.h2` margin: 0 0 .75rem; font-size: 1.1rem; color: #1f2a44; `;
-const List = styled.ul` list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; `;
-
-const UserPill = styled.li`
-  display: flex; align-items: center; gap: .6rem;
-  a { color: #1f4cff; font-weight: 600; text-decoration: none; }
-  img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-`;
-
-const PostCard = styled.div` border: 1px solid #eef1f7; border-radius: 10px; padding: .8rem;
-  &:not(:last-child){ margin-bottom: .6rem; } `;
-const PostHead = styled.div` font-size: .85rem; color: #667088; margin-bottom: .4rem; `;
-const Actions = styled.div` display: flex; gap: .6rem; flex-wrap: wrap; `;
-
-const Button = styled.button<{ variant?: "primary" | "ghost" }>`
-  appearance: none; border: none; cursor: pointer;
-  font-size: .95rem; font-weight: 600;
-  padding: .55rem .9rem; border-radius: 10px;
-  color: ${({ variant }) => variant === "ghost" ? "#1f4cff" : "#fff"};
-  background: ${({ variant }) => variant === "ghost" ? "#eef3ff" : "#5865f2"};
-  &:hover { opacity: .95; }
-  &:disabled { opacity: .6; cursor: not-allowed; }
-`;
-
-const Form = styled.form` display: grid; gap: .8rem; `;
-const Label = styled.label` display: grid; gap: .35rem; font-size: .9rem; color: #2e3856; `;
-const Input = styled.input`
-  padding: .65rem .75rem; border-radius: 10px; border: 1px solid #dfe3ee;
-  font-size: .95rem; outline: none;
-  &:focus { border-color: #5865f2; box-shadow: 0 0 0 3px rgba(88,101,242,.12); }
-`;
-const TextArea = styled.textarea`
-  padding: .65rem .75rem; border-radius: 10px; border: 1px solid #dfe3ee;
-  font-size: .95rem; min-height: 90px; resize: vertical; outline: none;
-  &:focus { border-color: #5865f2; box-shadow: 0 0 0 3px rgba(88,101,242,.12); }
-`;
-const UploadRow = styled.div` display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; `;
-const HiddenFile = styled.input.attrs({ type: "file" })` display: none; `;
-const UploadButton = styled.label`
-  background: #eef3ff; color: #1f4cff; border: 1px dashed #cbd7ff;
-  padding: .55rem .9rem; border-radius: 10px; cursor: pointer; font-weight: 600;
-`;
-
-/* Composer (tweet box) */
-const ComposerCard = styled(Card)` padding: 0.75rem 1rem; `;
-const ComposerText = styled(TextArea)` min-height: 80px; `;
-const ComposerFooter = styled.div`
-  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
-`;
-const Counter = styled.span<{ bad?: boolean }>`
-  font-size: .85rem; color: ${({ bad }) => (bad ? "#d32f2f" : "#5b667e")};
-`;
-
-/* ==================== COMPONENT ==================== */
-
+/* ------------ Componente ------------ */
 const MAX_LEN = 280;
 
 export default function Profile() {
@@ -123,7 +55,10 @@ export default function Profile() {
   const { username: routeUsername } = useParams<{ username: string }>();
   const isMe = !routeUsername || routeUsername === loggedUser;
 
+  // perfil e posts agora são estados separados
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,47 +67,89 @@ export default function Profile() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  // composer
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const normalize = (d: Partial<ProfileData>): ProfileData => {
-    const following = d.following ?? [];
-    const followers = d.followers ?? [];
-    const posts = d.posts ?? [];
-    return {
-      username: d.username ?? "",
-      email: d.email ?? "",
-      bio: d.bio ?? "",
-      photo: d.photo ?? null,
-      following, followers, posts,
-      following_count: d.following_count ?? following.length,
-      followers_count: d.followers_count ?? followers.length,
-    };
-  };
+  const normalize = (d: Partial<ProfileData>): ProfileData => ({
+    username: d.username ?? "",
+    email: d.email ?? "",
+    bio: d.bio ?? "",
+    photo: d.photo ?? null,
+    following: d.following ?? [],
+    followers: d.followers ?? [],
+    following_count: d.following_count ?? (d.following?.length ?? 0),
+    followers_count: d.followers_count ?? (d.followers?.length ?? 0),
+  });
 
-  const refetchMe = async () => {
+  /** Busca posts do usuário por endpoints mais previsíveis.
+   *  1) /posts/?user=<username>
+   *  2) /posts/user/<username>/ (fallback)
+   *  3) /posts/feed/ e filtra (fallback final)
+   */
+  async function fetchUserPosts(usernameToLoad: string) {
+    try {
+      const r = await api.get<Post[]>(`/posts/?user=${encodeURIComponent(usernameToLoad)}`);
+      setPosts(r.data);
+      return;
+    } catch {}
+
+    try {
+      const r2 = await api.get<Post[]>(`/posts/user/${encodeURIComponent(usernameToLoad)}/`);
+      setPosts(r2.data);
+      return;
+    } catch {}
+
+    try {
+      const r3 = await api.get<Post[]>(`/posts/feed/`);
+      setPosts(r3.data.filter(p => p.user === usernameToLoad));
+    } catch (e) {
+      console.error("Falha ao buscar posts; último fallback também falhou:", e);
+      setPosts([]);
+    }
+  }
+
+  async function refetchMe() {
     const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
-    setProfile(normalize(data));
-  };
+    const p = normalize(data);
+    setProfile(p);
+    setEmail(p.email);
+    setBioText(p.bio);
+    await fetchUserPosts(p.username);
+  }
 
+  // carrega perfil + posts
   useEffect(() => {
-    const load = async () => {
-      setLoading(true); setError(null);
+    (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const path = isMe ? "/profile/me/" : `/profile/${routeUsername}/`;
         const { data } = await api.get<Partial<ProfileData>>(path);
         const p = normalize(data);
         setProfile(p);
         if (isMe) { setEmail(p.email); setBioText(p.bio); }
+        const usernameToLoad = routeUsername ?? p.username;
+        await fetchUserPosts(usernameToLoad);
       } catch (e: any) {
         setError(e?.response?.status ? `Erro ${e.response.status}` : e?.message);
-      } finally { setLoading(false); }
-    };
-    load();
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [routeUsername, isMe]);
 
-  // foto preview
+  // refresh quando a aba volta ao foco
+  useEffect(() => {
+    const onFocus = () => {
+      const usernameToLoad = routeUsername || profile?.username;
+      if (usernameToLoad) fetchUserPosts(usernameToLoad);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [routeUsername, profile?.username]);
+
+  // foto
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
     setPhotoFile(f);
@@ -183,7 +160,6 @@ export default function Profile() {
     e.preventDefault();
     if (!isMe) return;
     setError(null);
-
     try {
       const form = new FormData();
       form.append("email", email);
@@ -204,8 +180,7 @@ export default function Profile() {
     }
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // criar post
+  // composer
   const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
 
   const handleCreatePost = async () => {
@@ -213,13 +188,12 @@ export default function Profile() {
     setPosting(true);
     setError(null);
     try {
-      const { data } = await api.post("/posts/", { content: newPost.trim() });
+      const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
       setNewPost("");
-
-
-      setProfile(prev =>
-        prev ? { ...prev, posts: [data as Post, ...prev.posts] } : prev
-      );
+      // coloca no topo só após sucesso real
+      setPosts(prev => [data, ...prev]);
+      // atualiza “Posts: X” (somamos 1 ao render, pois usamos posts.length)
+      // se quiser refletir em contadores no profile, nada a fazer pois usamos posts.length
     } catch (e: any) {
       setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
     } finally {
@@ -237,17 +211,16 @@ export default function Profile() {
   const toggleFollow = async () => {
     if (isMe || !routeUsername) return;
     await api.post(`/profile/${routeUsername}/follow/`);
+    // recarrega infos do perfil e posts do seguido
     const { data } = await api.get<Partial<ProfileData>>(`/profile/${routeUsername}/`);
-    setProfile(normalize(data));
+    const p = normalize(data);
+    setProfile(p);
+    await fetchUserPosts(routeUsername);
   };
 
   if (loading) return <Page><Card>Carregando perfil…</Card></Page>;
   if (error) return <Page><Card>Erro: {error}</Card></Page>;
   if (!profile) return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
-
-  const following = profile.following ?? [];
-  const followers = profile.followers ?? [];
-  const posts = profile.posts ?? [];
 
   return (
     <Page>
@@ -265,7 +238,7 @@ export default function Profile() {
                 <Button variant="ghost" onClick={logout}>Sair</Button>
               ) : (
                 <Button onClick={toggleFollow}>
-                  {following.some(u => u.username === loggedUser) ? "Deixar de seguir" : "Seguir"}
+                  {profile.following.some(u => u.username === loggedUser) ? "Deixar de seguir" : "Seguir"}
                 </Button>
               )}
             </Actions>
@@ -280,7 +253,7 @@ export default function Profile() {
       </HeaderCard>
 
       <Grid>
-        {/* Esquerda: composer + posts */}
+        {/* esquerda: composer + posts */}
         <div style={{ display: "grid", gap: "1rem" }}>
           {isMe && (
             <ComposerCard>
@@ -291,7 +264,6 @@ export default function Profile() {
                 placeholder="O que está acontecendo?"
                 maxLength={MAX_LEN + 20}
               />
-
               <ComposerFooter>
                 <Counter bad={newPost.length > MAX_LEN}>
                   {newPost.length}/{MAX_LEN}
@@ -321,15 +293,15 @@ export default function Profile() {
           </Card>
         </div>
 
-        {/* Direita: social + edição */}
+        {/* direita: social + edição */}
         <div style={{ display: "grid", gap: "1rem" }}>
           <Card>
             <SectionTitle>Seguindo</SectionTitle>
-            {following.length === 0 ? (
+            {profile.following.length === 0 ? (
               <p>Não segue ninguém ainda.</p>
             ) : (
               <List>
-                {following.map(u => (
+                {profile.following.map(u => (
                   <UserPill key={u.username}>
                     <img
                       src={resolveMediaUrl(u.photo) || "/default-avatar.png"}
@@ -345,11 +317,11 @@ export default function Profile() {
 
           <Card>
             <SectionTitle>Seguidores</SectionTitle>
-            {followers.length === 0 ? (
+            {profile.followers.length === 0 ? (
               <p>Sem seguidores ainda.</p>
             ) : (
               <List>
-                {followers.map(u => (
+                {profile.followers.map(u => (
                   <UserPill key={u.username}>
                     <img
                       src={resolveMediaUrl(u.photo) || "/default-avatar.png"}
@@ -378,13 +350,7 @@ export default function Profile() {
                 <Label>
                   Foto de perfil
                   <UploadRow>
-                    <HiddenFile
-                      ref={fileInputRef}
-                      id="photo-file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                    />
-
+                    <HiddenFile ref={fileInputRef} id="photo-file" accept="image/*" onChange={handlePhotoChange} />
                     <UploadButton htmlFor="photo-file">Escolher arquivo</UploadButton>
                     {photoFile && <span>{photoFile.name}</span>}
                   </UploadRow>
