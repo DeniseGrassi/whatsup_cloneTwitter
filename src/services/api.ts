@@ -10,7 +10,6 @@ const RAW_BASE_URL =
 
 const BASE_URL = String(RAW_BASE_URL).replace(/\/+$/, "");
 
-
 const api = axios.create({
   baseURL: BASE_URL,
 });

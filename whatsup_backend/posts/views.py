@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from .models import Post, Comment, Like, Dislike   
 from .serializers import (
@@ -29,20 +30,18 @@ class PostListCreateView(generics.ListCreateAPIView):
         serializer.save(user=self.request.user)
 
 
+
 class FeedView(generics.ListAPIView):
-    """
-    GET /api/posts/feed/  -> feed de quem eu sigo + meus posts.
-    """
-    serializer_class = PostSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    serializer_class = PostSerializer
 
     def get_queryset(self):
-        following_ids = list(
-            self.request.user.profile.following.values_list("user__id", flat=True)
-        )
-        following_ids.append(self.request.user.id)
-        return Post.objects.filter(user__id__in=following_ids).order_by("-created_at")
+        me = self.request.user
+        following_users = me.profile.following.values_list('user_id', flat=True)
+        return (Post.objects
+                .filter(Q(user=me) | Q(user_id__in=following_users))
+                .select_related('user')
+                .order_by('-created_at'))
 
 
 class CommentListView(generics.ListAPIView):
@@ -165,3 +164,4 @@ class UserPostsView(generics.ListAPIView):
         User = get_user_model()
         user = get_object_or_404(User, username=username)
         return Post.objects.filter(user=user).order_by('-created_at')
+

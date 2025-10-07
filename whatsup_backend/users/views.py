@@ -6,6 +6,7 @@ from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.filters import SearchFilter
 
 from .models import UserProfile
 from .serializers import (
@@ -13,7 +14,6 @@ from .serializers import (
     UserProfileSerializer,
     UserProfileUpdateSerializer,
 )
-
 
 User = get_user_model()
 
@@ -75,11 +75,16 @@ class UserProfileView(APIView):
 
 
 class ProfileListView(generics.ListAPIView):
-    queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [SearchFilter]
+    search_fields = ['user__username', 'user__email', 'bio']
 
-    def get_serializer_context(self):
-        return {"request": self.request}
+    def get_queryset(self):
+        qs = UserProfile.objects.select_related('user')
+        if self.request.user.is_authenticated:
+            qs = qs.exclude(user=self.request.user)
+        return qs
 
 
 class ProfileView(generics.RetrieveAPIView):
@@ -90,7 +95,25 @@ class ProfileView(generics.RetrieveAPIView):
 
     def get_serializer_context(self):
         return {"request": self.request}
+    
+class SuggestedProfilesView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserProfileSerializer
 
+    def get_queryset(self):
+        
+        me, _ = UserProfile.objects.get_or_create(user=self.request.user)
+        following_ids = me.following.values_list("id", flat=True)
+
+        return (
+            UserProfile.objects
+            .exclude(id__in=list(following_ids) + [me.id])  
+            .select_related("user")
+            .order_by("-id")[:20]  
+        )
+
+    def get_serializer_context(self):
+        return {"request": self.request}
 
 class FollowView(APIView):
     permission_classes = [IsAuthenticated]

@@ -6,6 +6,7 @@ import Feed from "./pages/Feed";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import Explore from "./pages/Explore";
 
 export default function AppRoutes() {
   return (
@@ -14,6 +15,7 @@ export default function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/explore" element={<Explore />} />
 
         <Route
           path="/feed"
@@ -36,3 +38,6 @@ export default function AppRoutes() {
     </BrowserRouter>
   );
 }
+
+
+

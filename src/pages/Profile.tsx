@@ -273,11 +273,19 @@ export default function Profile() {
           <Title>
             <h1>@{profile.username}</h1>
             <Actions>
+              {/* Link para a lista de sugeridos */}
+              <Button as={Link} to="/explore" variant="ghost">
+                Explorar
+              </Button>
+
               {isMe ? (
                 <Button variant="ghost" onClick={logout}>Sair</Button>
               ) : (
                 <Button onClick={toggleFollow}>
-                  {profile.following.some(u => u.username === loggedUser) ? "Deixar de seguir" : "Seguir"}
+                  {/* se o usuário logado já segue este perfil, o logado aparece em 'followers' do perfil visitado */}
+                  {profile.followers?.some(u => u.username === loggedUser)
+                    ? "Deixar de seguir"
+                    : "Seguir"}
                 </Button>
               )}
             </Actions>
