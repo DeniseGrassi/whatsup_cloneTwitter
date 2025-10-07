@@ -97,19 +97,17 @@ class ProfileView(generics.RetrieveAPIView):
         return {"request": self.request}
     
 class SuggestedProfilesView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     serializer_class = UserProfileSerializer
 
     def get_queryset(self):
-        
-        me, _ = UserProfile.objects.get_or_create(user=self.request.user)
-        following_ids = me.following.values_list("id", flat=True)
-
+        me = self.request.user.profile
+        following_ids = me.following.values_list('id', flat=True)
         return (
             UserProfile.objects
-            .exclude(id__in=list(following_ids) + [me.id])  
-            .select_related("user")
-            .order_by("-id")[:20]  
+            .exclude(id__in=list(following_ids) + [me.id])
+            .select_related('user')
+            .order_by('-id')[:20]
         )
 
     def get_serializer_context(self):
