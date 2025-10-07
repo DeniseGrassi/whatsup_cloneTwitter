@@ -94,7 +94,8 @@ export default function Profile() {
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-
+  const safeAvatar = (p?: string | null) =>
+    resolveMediaUrl(p) || fotoAvatar;
 
   const normalize = (d: Partial<ProfileData>): ProfileData => ({
     username: d.username ?? "",
@@ -107,11 +108,7 @@ export default function Profile() {
     followers_count: d.followers_count ?? (d.followers?.length ?? 0),
   });
 
-  /** Busca posts do usuário por endpoints mais previsíveis.
-   *  1) /posts/?user=<username>
-   *  2) /posts/user/<username>/ (fallback)
-   *  3) /posts/feed/ e filtra (fallback final)
-   */
+
   async function fetchUserPosts(usernameToLoad: string) {
     try {
       const r = await api.get<Post[]>(`/posts/?user=${encodeURIComponent(usernameToLoad)}`);
@@ -215,10 +212,7 @@ export default function Profile() {
     try {
       const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
       setNewPost("");
-      // coloca no topo só após sucesso real
       setPosts(prev => [data, ...prev]);
-      // atualiza “Posts: X” (somamos 1 ao render, pois usamos posts.length)
-      // se quiser refletir em contadores no profile, nada a fazer pois usamos posts.length
     } catch (e: any) {
       setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
     } finally {
@@ -282,7 +276,6 @@ export default function Profile() {
                 <Button variant="ghost" onClick={logout}>Sair</Button>
               ) : (
                 <Button onClick={toggleFollow}>
-                  {/* se o usuário logado já segue este perfil, o logado aparece em 'followers' do perfil visitado */}
                   {profile.followers?.some(u => u.username === loggedUser)
                     ? "Deixar de seguir"
                     : "Seguir"}
@@ -366,8 +359,8 @@ export default function Profile() {
                 {profile.following.map(u => (
                   <UserPill key={u.username}>
                     <img
-                      src={resolveMediaUrl(u.photo) || "/default-avatar.png"}
-                      onError={e => { (e.currentTarget as HTMLImageElement).src = "/default-avatar.png"; }}
+                      src={safeAvatar(u.photo)}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = fotoAvatar; }}
                       alt=""
                     />
                     <Link to={`/profile/${u.username}`}>@{u.username}</Link>
