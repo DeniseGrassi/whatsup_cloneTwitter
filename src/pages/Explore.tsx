@@ -2,12 +2,13 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import api, { resolveMediaUrl } from "../services/api";
 import { Link } from "react-router-dom";
+import fotoAvatar from "../foto_avatar.avif";
 
 const Page = styled.div`max-width: 720px; margin: 2rem auto; padding: 0 1rem;`;
 const Card = styled.div`background:#fff; border:1px solid #e9edf5; border-radius:12px; padding:1rem;`;
 const Row = styled.div`display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.6rem 0; border-bottom:1px solid #f2f4fa; &:last-child{border-bottom:0}`;
 const Left = styled.div`display:flex; align-items:center; gap:.75rem;`;
-const Avatar = styled.img`width:40px; height:40px; border-radius:50%; object-fit:cover;`;
+const Avatar = styled.img`  width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;`;
 const Btn = styled.button`background:#5865f2; color:#fff; border:none; border-radius:8px; padding:.45rem .8rem; cursor:pointer;`;
 
 type Mini = { username: string; photo: string | null };
@@ -52,9 +53,17 @@ export default function Explore() {
                     <Row key={u.username}>
                         <Left>
                             <Avatar
-                                src={resolveMediaUrl(u.photo) || "/default-avatar.png"}
-                                onError={e => { (e.currentTarget as HTMLImageElement).src = "/default-avatar.png"; }}
+                                loading="lazy"
+                                src={u.photo ? resolveMediaUrl(u.photo)! : fotoAvatar}
                                 alt=""
+                                onError={(ev) => {
+                                    const img = ev.currentTarget;
+                                    // evita loop de onError: seta uma vez e remove o handler
+                                    if (img.src !== fotoAvatar) {
+                                        img.onerror = null;
+                                        img.src = fotoAvatar;
+                                    }
+                                }}
                             />
                             <Link to={`/profile/${u.username}`}>@{u.username}</Link>
                         </Left>
