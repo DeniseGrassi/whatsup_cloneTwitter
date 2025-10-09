@@ -1,4 +1,10 @@
-import React, { useEffect, useState, KeyboardEvent, useRef } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  KeyboardEvent,
+} from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import api, { resolveMediaUrl } from "../services/api";
@@ -87,12 +93,18 @@ const SideCol = styled.div`display: grid; gap: 12px; align-content: start; justi
 
 const MAX_LEN = 280;
 
+/* ====== Componente ====== */
 export default function Profile() {
   const { username: loggedUser, logout } = useAuth();
   const params = useParams<{ username: string }>();
+  const navigate = useNavigate();
 
-  const routeUsername = params.username && params.username !== "null" ? params.username : undefined;
-  const isMe = !routeUsername || routeUsername === loggedUser;
+  /** username “em exibição”: rota > logado */
+  const viewUser = useMemo(
+    () => (params.username && params.username !== "null" ? params.username : loggedUser),
+    [params.username, loggedUser]
+  );
+  const isMe = viewUser === loggedUser;
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -109,157 +121,140 @@ export default function Profile() {
   const [replyForId, setReplyForId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
   const [followBusy, setFollowBusy] = useState(false);
-  const navigate = useNavigate();
 
-  const avatarSrc = (p?: string | null) => resolveMediaUrl(p) || fotoAvatar;
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  const avatarSrc = (p?: string | null) => resolveMediaUrl(p || undefined) || fotoAvatar;
   const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     e.currentTarget.onerror = null;
     e.currentTarget.src = fotoAvatar;
   };
 
-  const composerRef = useRef<HTMLTextAreaElement>(null);
   const autosize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   };
-  useEffect(() => { autosize(composerRef.current); }, [newPost]);
+  useEffect(() => {
+    autosize(composerRef.current);
+  }, [newPost]);
 
-  // normaliza todas as URLs de foto (perfil + listas)
+  // normaliza foto e listas
   const mapMini = (u: MiniUser): MiniUser => ({
     username: u.username,
-    photo: resolveMediaUrl(u.photo) ?? null,
+    photo: resolveMediaUrl(u.photo || undefined) ?? null,
   });
   const normalize = (d: Partial<ProfileData>): ProfileData => ({
     username: d.username ?? "",
     email: d.email ?? "",
     bio: d.bio ?? "",
-    photo: resolveMediaUrl(d.photo ?? null) ?? null,
+    photo: resolveMediaUrl(d.photo ?? undefined) ?? null,
     following: (d.following ?? []).map(mapMini),
     followers: (d.followers ?? []).map(mapMini),
     following_count: d.following_count ?? (d.following?.length ?? 0),
     followers_count: d.followers_count ?? (d.followers?.length ?? 0),
   });
 
-// ===== 1) BUSCAR POSTS DE QUEM O DONO DO PERFIL SEGUE + DO PRÓPRIO DONO =====
-async function fetchPostsFromAllowed(allowedUsernames: string[]) {
-  const allow = new Set<string>(allowedUsernames);
-
-  const filterAndSort = (arr: Post[] | undefined) =>
-    (arr ?? [])
-      .filter(p => allow.has(p.user))
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
-  try {
-    // 1) tenta /posts/feed/ (normalmente traz um volume grande)
-    try {
-      const r = await api.get<Post[]>("/posts/feed/");
-      const data = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
-      const filtered = filterAndSort(data);
-      if (filtered.length) {
-        setPosts(filtered);
-        return;
-      }
-    } catch {}
-
-    // 2) fallback: /posts/
-    try {
-      const r2 = await api.get<Post[]>("/posts/");
-      const data2 = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
-      setPosts(filterAndSort(data2));
-      return;
-    } catch {}
-
-    setPosts([]);
-  } catch (e) {
-    console.error("Falha ao buscar posts (allowed):", e);
-    setPosts([]);
+  /** ------- feed: posts de quem o DONO do perfil segue + do próprio DONO ------- */
+  function buildAllowedUsernames(p: ProfileData) {
+    const following = (p.following ?? []).map(u => u.username);
+    return Array.from(new Set<string>([p.username, ...following]));
   }
-}
 
-// helper para montar a lista de usuários permitidos a partir do perfil carregado
-function buildAllowedUsernames(p: ProfileData) {
-  const following = (p.following ?? []).map(u => u.username);
-  // inclui também o dono do perfil
-  return Array.from(new Set<string>([p.username, ...following]));
-}
+  async function fetchPostsFromAllowed(allowedUsernames: string[]) {
+    const allow = new Set<string>(allowedUsernames);
+    const filterAndSort = (arr: Post[] | undefined) =>
+      (arr ?? [])
+        .filter(p => allow.has(p.user))
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
 
+    try {
+      // 1) tenta feed
+      try {
+        const r = await api.get<Post[]>("/posts/feed/");
+        const data = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
+        const filtered = filterAndSort(data);
+        if (filtered.length) {
+          setPosts(filtered);
+          return;
+        }
+      } catch {}
 
-// ===== 2) REFETCH DO MEU PERFIL (aplica filtro novo) =====
-async function refetchMe() {
-  const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
-  const p = normalize(data);
-  if (p.photo) p.photo = `${p.photo}?v=${Date.now()}`;
-  setProfile(p);
+      // 2) fallback: lista completa
+      try {
+        const r2 = await api.get<Post[]>("/posts/");
+        const data2 = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
+        setPosts(filterAndSort(data2));
+        return;
+      } catch {}
 
-  const allowed = buildAllowedUsernames(p);
-  await fetchPostsFromAllowed(allowed);
-}
+      setPosts([]);
+    } catch (e) {
+      console.error("Falha ao buscar posts (allowed):", e);
+      setPosts([]);
+    }
+  }
 
+  /** ------- carregar perfil por USERNAME (inclusive “me”) ------- */
+  const fetchProfile = async (user: string) => {
+    const { data } = await api.get<Partial<ProfileData>>(`/profile/${encodeURIComponent(user)}/`);
+    const p = normalize(data);
+    setProfile(p);
 
-// ===== 3) CARREGAMENTO INICIAL (aplica filtro novo) =====
-useEffect(() => {
-  (async () => {
+    const allowed = buildAllowedUsernames(p);
+    await fetchPostsFromAllowed(allowed);
+  };
+
+  /** ------- carregamento inicial / troca de rota ------- */
+  useEffect(() => {
+    if (!viewUser) return;
     setLoading(true);
     setError(null);
+    (async () => {
+      try {
+        await fetchProfile(viewUser);
+      } catch (e: any) {
+        setError(e?.response?.status ? `Erro ${e.response.status}` : e?.message || "Falha ao carregar perfil");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [viewUser]);
+
+  /** ------- ao voltar o foco pra aba, refaz o feed com o mesmo filtro ------- */
+  useEffect(() => {
+    const onFocus = () => {
+      if (!profile) return;
+      const allowed = buildAllowedUsernames(profile);
+      void fetchPostsFromAllowed(allowed);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [profile]);
+
+  /** ------- publicar ------- */
+  const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
+  const handleCreatePost = async () => {
+    if (!isMe || !canPost) return;
+    setPosting(true);
+    setError(null);
     try {
-      const path = isMe ? "/profile/me/" : `/profile/${routeUsername}/`;
-      const { data } = await api.get<Partial<ProfileData>>(path);
-      const p = normalize(data);
-      setProfile(p);
-
-      const allowed = buildAllowedUsernames(p);
-      await fetchPostsFromAllowed(allowed);
+      const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
+      setNewPost("");
+      setPosts(prev =>
+        [data, ...prev].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      );
     } catch (e: any) {
-      setError(e?.response?.status ? `Erro ${e.response.status}` : e?.message);
+      setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
     } finally {
-      setLoading(false);
+      setPosting(false);
     }
-  })();
-}, [routeUsername, isMe]);
-
-
-// ===== 4) AO VOLTAR O FOCO PARA A ABA, RECARREGAR COM O MESMO FILTRO =====
-useEffect(() => {
-  const onFocus = () => {
-    if (!profile) return;
-    const allowed = buildAllowedUsernames(profile);
-    void fetchPostsFromAllowed(allowed);
   };
-  window.addEventListener("focus", onFocus);
-  return () => window.removeEventListener("focus", onFocus);
-}, [profile]);
-
-
-// ===== 5) PUBLICAR (mantém comportamento atual) =====
-const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
-
-const handleCreatePost = async () => {
-  if (!isMe || !canPost) return;
-  setPosting(true);
-  setError(null);
-  try {
-    const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
-    setNewPost("");
-
-    // como o próprio dono sempre está no "allowed", a postagem
-    // dele aparece no topo imediatamente
-    setPosts(prev =>
-      [data, ...prev].sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-    );
-  } catch (e: any) {
-    setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
-  } finally {
-    setPosting(false);
-  }
-};
-
   const handleComposerKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -267,25 +262,39 @@ const handleCreatePost = async () => {
     }
   };
 
+  /** ------- seguir / deixar de seguir ------- */
   const toggleFollow = async () => {
-    if (isMe || !routeUsername || !profile) return;
+    if (isMe || !viewUser || !profile) return;
     setFollowBusy(true);
     try {
       const amFollowing = profile.followers?.some(u => u.username === loggedUser);
       if (amFollowing) {
-        await api.delete(`/profile/${routeUsername}/follow/`);
+        // se seu backend usa POST para unfollow também, troque para POST
+        await api.delete(`/profile/${encodeURIComponent(viewUser)}/follow/`);
       } else {
-        await api.post(`/profile/${routeUsername}/follow/`);
+        const r = await api.post(
+          `/profile/${encodeURIComponent(viewUser)}/follow/`,
+          {},
+          { headers: { "Content-Type": "application/json" } }
+        );
+        // opcional: conferir r.data?.is_following
       }
-      const { data } = await api.get<Partial<ProfileData>>(`/profile/${routeUsername}/`);
-      setProfile(normalize(data));
+      // refetch para garantir contadores e listas consistentes
+      await fetchProfile(viewUser);
     } catch (e: any) {
-      alert(e?.response?.status ? `Erro ${e.response.status} ao seguir/deixar de seguir.` : "Falha na operação.");
+      const status = e?.response?.status;
+      const detail =
+        e?.response?.data?.detail ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "Falha na operação.";
+      alert(`Erro${status ? ` ${status}` : ""} ao seguir/deixar de seguir. ${detail}`);
     } finally {
       setFollowBusy(false);
     }
   };
 
+  /** ------- excluir ------- */
   const handleDeletePost = async (postId: number) => {
     if (!window.confirm("Apagar este post?")) return;
     try {
@@ -299,6 +308,7 @@ const handleCreatePost = async () => {
     }
   };
 
+  /** ------- like ------- */
   const handleLike = async (post: Post) => {
     setPosts(prev =>
       prev.map(p =>
@@ -325,6 +335,7 @@ const handleCreatePost = async () => {
     }
   };
 
+  /** ------- replies ------- */
   const onlyRepliesOf = (arr: Post[] | undefined, parentId: number) => {
     const pid = Number(parentId);
     if (!Array.isArray(arr)) return [];
@@ -389,9 +400,16 @@ const handleCreatePost = async () => {
     }
   };
 
+  /* ====== RENDER ====== */
   if (loading) return <Page><Card>Carregando perfil…</Card></Page>;
   if (error) return <Page><Card>Erro: {error}</Card></Page>;
   if (!profile) return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
+
+  const amIFollowingThisUser = !isMe && profile.followers?.some(u => u.username === loggedUser);
+
+  function refetchMe(): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <Page>
