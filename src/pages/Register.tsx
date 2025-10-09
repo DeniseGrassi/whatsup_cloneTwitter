@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { useNavigate, Link } from "react-router-dom";
-import api from "../services/api"; // <- ajuste o caminho caso seu arquivo esteja em /src/pages
+import api from "../services/api"; 
 
 const Bg = styled.div`
   min-height: 100vh;
@@ -110,22 +110,17 @@ export default function Register() {
     const validUserRe = /^[\w.@+-]+$/;
 
     if (!validUserRe.test(normalized)) {
-      setError(
-        "Usuário inválido. Use apenas letras, números e @ . + - _ (sem espaços)."
-      );
+      setError("Usuário inválido. Use apenas letras, números e @ . + - _ (sem espaços).");
       return;
     }
-
     if (!email.trim()) {
       setError("Informe um e-mail válido.");
       return;
     }
-
     if (!password) {
       setError("Informe a senha.");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("As senhas não conferem!");
       return;
@@ -134,7 +129,6 @@ export default function Register() {
     try {
       setLoading(true);
 
-      // Enviamos password e password2 (teu backend aceita qualquer formato)
       const r = await api.post<RegisterResponse>("/register/", {
         username: normalized,
         email: email.trim(),
@@ -142,17 +136,23 @@ export default function Register() {
         password2: confirmPassword,
       });
 
-      // sucesso: já loga
+      // sucesso: salva sessão
       localStorage.setItem("token", r.data.token);
       localStorage.setItem("username", normalized);
-      // se tiver AuthContext com updateUsername, opcional:
-      try { (window as any).dispatchEvent(new Event("auth-updated")) } catch { }
-      // vai para o perfil do novo usuário:
-      navigate(`/profile/${normalized}`);
+
+      // navega para o perfil (SPA) e garante fallback com reload se necessário
+      const target = `/profile/${normalized}`;
+      navigate(target, { replace: true });
+
+      // se por qualquer motivo a SPA não navegar (guards/estado), força navegação
+      setTimeout(() => {
+        if (window.location.pathname !== target) {
+          window.location.assign(target);
+        }
+      }, 50);
     } catch (err: any) {
       const data = err?.response?.data || {};
-      const pick = (v: any) =>
-        Array.isArray(v) ? v.join(" ") : typeof v === "string" ? v : "";
+      const pick = (v: any) => (Array.isArray(v) ? v.join(" ") : typeof v === "string" ? v : "");
 
       const msg =
         pick(data.detail) ||
