@@ -59,34 +59,36 @@ export default function Explore() {
     load();
   }, []);
 
-  const follow = async (u: string) => {
+const follow = async (u: string) => {
+  try {
+    // body vazio + content-type ajuda em DRF
+    const r = await api.post(
+      `/profile/${encodeURIComponent(u)}/follow/`,
+      {}, // algumas views do DRF rejeitam POST sem body
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-    setUsers(prev => prev.map(x => x.username === u ? { ...x, loading: true } : x));
-    try {
-      const { data, status } = await api.post(`/profile/${u}/follow/`, {});
-
-      let isFollowing: boolean | undefined = data?.is_following;
-
-      if (typeof isFollowing === "undefined") {
-        const prof = await api.get(`/profile/${u}/`);
-        isFollowing = !!prof?.data?.is_following;
-      }
-
-      if (status >= 200 && status < 300 && isFollowing) {
-
-        setUsers(prev => prev.filter(x => x.username !== u));
-      } else {
-        // rollback visual
-        setUsers(prev => prev.map(x => x.username === u ? { ...x, loading: false } : x));
-        alert("Não foi possível seguir agora.");
-      }
-    } catch (e) {
-      console.error("POST /follow falhou:", e);
-      // rollback visual
-      setUsers(prev => prev.map(x => x.username === u ? { ...x, loading: false } : x));
-      alert("Não foi possível seguir agora.");
+    // Sinais de sucesso
+    const ok = (r.status >= 200 && r.status < 300) || r.data?.is_following === true;
+    if (ok) {
+      setUsers(prev => prev.filter(x => x.username !== u)); // agora sim
+      return;
     }
-  };
+
+    alert(`Não foi possível seguir agora. (${r.status})`);
+    console.warn("FOLLOW unexpected response:", r);
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const detail =
+      e?.response?.data?.detail ||
+      e?.response?.data?.error ||
+      e?.message ||
+      "erro desconhecido";
+    alert(`Não foi possível seguir agora. (${status}) ${detail}`);
+    console.error("POST /follow falhou:", e);
+  }
+};
+
 
   const avatarSrc = (p?: string | null) => resolveMediaUrl(p) || fotoAvatar;
 
