@@ -93,28 +93,50 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 # ------------ cadastro ------------
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True)
+class RegisterSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    email = serializers.EmailField()
 
-    class Meta:
-        model = User
-        fields = ["username", "email", "password", "password2"]
+    # Aceita password OU password1/password2
+    password = serializers.CharField(write_only=True, required=False, min_length=5)
+    password1 = serializers.CharField(write_only=True, required=False, min_length=5)
+    password2 = serializers.CharField(write_only=True, required=False, min_length=5)
 
-    def validate(self, data):
-        if data["password"] != data["password2"]:
-            raise serializers.ValidationError({"password": "As senhas não conferem."})
-        return data
+    def validate_username(self, v):
+        if User.objects.filter(username__iexact=v).exists():
+            raise serializers.ValidationError("Este usuário já existe.")
+        return v
+
+    def validate_email(self, v):
+        if User.objects.filter(email__iexact=v).exists():
+            raise serializers.ValidationError("Este e-mail já está em uso.")
+        return v
+
+    def validate(self, attrs):
+        # Normaliza: usa `password` se vier; senão tenta `password1`
+        pwd = attrs.get("password") or attrs.get("password1")
+        confirm = attrs.get("password2")
+
+        if not pwd:
+            # se não veio nenhuma forma de senha, erro
+            raise serializers.ValidationError({"password": "Informe a senha."})
+
+        # Se veio confirmação, valida
+        if confirm is not None and pwd != confirm:
+            raise serializers.ValidationError({"password2": "As senhas não conferem."})
+
+        # Deixa só 'password' para o create()
+        attrs["password"] = pwd
+        attrs.pop("password1", None)
+        attrs.pop("password2", None)
+        return attrs
 
     def create(self, validated_data):
-        validated_data.pop("password2")
-        user = User.objects.create_user(
+        return User.objects.create_user(
             username=validated_data["username"],
-            email=validated_data.get("email"),
+            email=validated_data["email"],
             password=validated_data["password"],
         )
-        UserProfile.objects.get_or_create(user=user)
-        return user
 
 
 class UserMiniSerializer(serializers.ModelSerializer):

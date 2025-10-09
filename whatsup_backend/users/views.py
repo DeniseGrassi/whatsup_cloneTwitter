@@ -66,15 +66,14 @@ class ChangePasswordView(APIView):
         ser.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-# -------- registro/login (igual ao seu) --------
+# -------- registro/login --------
 class RegisterView(APIView):
     def post(self, request):
         ser = RegisterSerializer(data=request.data)
-        if ser.is_valid():
-            user = ser.save()
-            token, _ = Token.objects.get_or_create(user=user)
-            return Response({"token": token.key}, status=status.HTTP_201_CREATED)
-        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        ser.is_valid(raise_exception=True)
+        user = ser.save()
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key}, status=status.HTTP_201_CREATED)
 
 class LoginView(APIView):
     def post(self, request):
