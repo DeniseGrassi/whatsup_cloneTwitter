@@ -6,25 +6,46 @@ import Feed from "./pages/Feed";
 import Profile from "./pages/Profile";
 import Explore from "./pages/Explore";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import PublicOnlyRoute from "./routes/PublicOnlyRoute";
 import { useAuth } from "./context/AuthContext";
 
-// redireciona o usuário logado para o próprio perfil
-function MeRedirect() {
-  const { token, username } = useAuth();
-  if (!token) return <Navigate to="/login" replace />;
-  return <Navigate to={`/profile/${username}`} replace />;
+
+function RootRedirect() {
+  const { token, loading } = useAuth();
+  if (loading) return null;
+  return token ? <Navigate to="/feed" replace /> : <Navigate to="/login" replace />;
 }
+
+// function MeRedirect() {
+//   const { token, username } = useAuth();
+//   if (!token) return <Navigate to="/login" replace />;
+//   return <Navigate to={`/profile/${username}`} replace />;
+// }
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* público */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* raiz decide pra onde ir */}
+        <Route path="/" element={<RootRedirect />} />
 
-        {/* raiz -> feed */}
-        <Route path="/" element={<Navigate to="/feed" replace />} />
+        {/* público somente quando deslogado */}
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <Login />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <Register />
+            </PublicOnlyRoute>
+          }
+        />
 
         {/* protegido */}
         <Route
@@ -44,18 +65,16 @@ export default function AppRoutes() {
           }
         />
         <Route
-          path="/profile/:username"
+          path="/profile/:username?"
           element={
             <ProtectedRoute>
               <Profile />
             </ProtectedRoute>
           }
         />
-        {/* meu perfil direto */}
-        <Route path="/me" element={<MeRedirect />} />
 
         {/* fallback */}
-        <Route path="*" element={<Navigate to="/feed" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
