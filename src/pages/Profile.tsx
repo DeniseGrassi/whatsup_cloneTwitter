@@ -15,10 +15,30 @@ import EditProfileBox from "../components/EditProfileBox";
 
 /* ----------------- Tipos ----------------- */
 interface MiniUser { username: string; photo: string | null }
+interface PostRaw {
+  id: number;
+  user?: string | number;
+  user_detail?: { username?: string; photo?: string | null };
+  author?: { username?: string; photo?: string | null };
+  username?: string;
+  content: string;
+  created_at: string;
+  parent?: number | null;
+  parent_detail?: { id?: number; user?: string };
+  likes_count: number;
+  comments_count: number;
+  liked?: boolean;
+}
 interface Post {
-  id: number; user: string; content: string; created_at: string;
-  parent: number | null; parent_detail?: Partial<Post>;
-  likes_count: number; comments_count: number; liked?: boolean;
+  id: number;
+  user: string;                 // normalizado
+  content: string;
+  created_at: string;
+  parent: number | null;
+  parent_detail?: Partial<Post>;
+  likes_count: number;
+  comments_count: number;
+  liked?: boolean;
 }
 interface ProfileData {
   username: string; email: string; bio: string; photo: string | null;
@@ -70,7 +90,7 @@ const ComposerText = styled.textarea`
 const ComposerFooter = styled.div`display: flex; align-items: center; justify-content: space-between; gap: .75rem;`;
 const Counter = styled.span<{ $bad?: boolean }>`font-size: .85rem; color: ${(p) => (p.$bad ? "#d32f2f" : "#5b667e")};`;
 const PostCard = styled.div`position: relative; border: 1px solid #eef1f7; border-radius: 10px; padding: .8rem; &:not(:last-child) { margin-bottom: .6rem; }`;
-const PostHead = styled.div`font-size: .85rem; color: #667088; margin-bottom: .4rem;`;
+const PostHead = styled.div`font-size: .85rem; color: #667088; margin-bottom: .4rem; display:flex; gap:.5rem; align-items:center;`;
 const PostActions = styled.div`position: absolute; top: .5rem; right: .5rem; display: flex; gap: .4rem;`;
 const IconBtn = styled.button`
   appearance: none; border: none; background: transparent; cursor: pointer; padding: 4px; color: #6b7280; border-radius: 8px;
@@ -93,6 +113,32 @@ const SideCol = styled.div`display: grid; gap: 12px; align-content: start; justi
 
 const MAX_LEN = 280;
 
+/* ====== Helpers de normalização ====== */
+const pickUsername = (raw: any): string | undefined => {
+  // cobre vários formatos comuns do DRF
+  if (typeof raw?.user === "string") return raw.user;
+  if (typeof raw?.username === "string") return raw.username;
+  if (typeof raw?.user_detail?.username === "string") return raw.user_detail.username;
+  if (typeof raw?.author?.username === "string") return raw.author.username;
+  if (typeof raw?.parent_detail?.user === "string") return raw.parent_detail.user; // fallback
+  if (typeof raw?.user === "number") return String(raw.user);
+  return undefined;
+};
+
+const normalizePost = (r: PostRaw): Post => ({
+  id: r.id,
+  user: pickUsername(r) || "",
+  content: r.content,
+  created_at: r.created_at,
+  parent: (typeof r.parent === "number" ? r.parent : (r.parent_detail?.id ?? null)) ?? null,
+  parent_detail: r.parent_detail
+    ? { id: r.parent_detail.id ?? undefined, user: r.parent_detail.user as any }
+    : undefined,
+  likes_count: r.likes_count ?? 0,
+  comments_count: r.comments_count ?? 0,
+  liked: r.liked ?? false,
+});
+
 /* ====== Componente ====== */
 export default function Profile() {
   const { username: loggedUser, logout } = useAuth();
@@ -100,12 +146,12 @@ export default function Profile() {
   const navigate = useNavigate();
 
   /** username “em exibição”: rota > logado */
-  const viewUser = useMemo(
-    () => (params.username && params.username !== "null" ? params.username : loggedUser),
-    [params.username, loggedUser]
-  );
-  const isMe = viewUser === loggedUser;
+  const viewUser = useMemo<string>(() => {
+    const routeU = params.username && params.username !== "null" ? params.username : undefined;
+    return routeU ?? (loggedUser ?? "");   // garante string
+  }, [params.username, loggedUser]);
 
+  const isMe = viewUser !== "" && viewUser === (loggedUser ?? "")
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
@@ -165,7 +211,7 @@ export default function Profile() {
     const allow = new Set<string>(allowedUsernames);
     const filterAndSort = (arr: Post[] | undefined) =>
       (arr ?? [])
-        .filter(p => allow.has(p.user))
+        .filter(p => allow.has(p.user))         // filtra por autor normalizado
         .sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -174,22 +220,24 @@ export default function Profile() {
     try {
       // 1) tenta feed
       try {
-        const r = await api.get<Post[]>("/posts/feed/");
-        const data = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
-        const filtered = filterAndSort(data);
+        const r = await api.get<PostRaw[] | { results: PostRaw[] }>("/posts/feed/");
+        const raw = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
+        const normalized = raw.map(normalizePost);
+        const filtered = filterAndSort(normalized);
         if (filtered.length) {
           setPosts(filtered);
           return;
         }
-      } catch {}
+      } catch { }
 
       // 2) fallback: lista completa
       try {
-        const r2 = await api.get<Post[]>("/posts/");
-        const data2 = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
-        setPosts(filterAndSort(data2));
+        const r2 = await api.get<PostRaw[] | { results: PostRaw[] }>("/posts/");
+        const raw2 = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
+        const normalized2 = raw2.map(normalizePost);
+        setPosts(filterAndSort(normalized2));
         return;
-      } catch {}
+      } catch { }
 
       setPosts([]);
     } catch (e) {
@@ -198,10 +246,31 @@ export default function Profile() {
     }
   }
 
+  /** ------- (opcional) fallback para listas de seguidores/seguindo ------- */
+  const maybeFetchFollowLists = async (p: ProfileData): Promise<ProfileData> => {
+    const out = { ...p };
+    // só tenta fallback se contagem > 0 mas lista veio vazia
+    try {
+      if (out.following_count > 0 && out.following.length === 0) {
+        const r = await api.get<MiniUser[]>(`/profile/${encodeURIComponent(p.username)}/following/`);
+        out.following = (r.data ?? []).map(mapMini);
+      }
+    } catch { }
+    try {
+      if (out.followers_count > 0 && out.followers.length === 0) {
+        const r2 = await api.get<MiniUser[]>(`/profile/${encodeURIComponent(p.username)}/followers/`);
+        out.followers = (r2.data ?? []).map(mapMini);
+      }
+    } catch { }
+    return out;
+  };
+
   /** ------- carregar perfil por USERNAME (inclusive “me”) ------- */
   const fetchProfile = async (user: string) => {
     const { data } = await api.get<Partial<ProfileData>>(`/profile/${encodeURIComponent(user)}/`);
-    const p = normalize(data);
+    let p = normalize(data);
+    // fallback: se a API não entregar listas no /:username/, tenta nos endpoints dedicados
+    p = await maybeFetchFollowLists(p);
     setProfile(p);
 
     const allowed = buildAllowedUsernames(p);
@@ -242,10 +311,11 @@ export default function Profile() {
     setPosting(true);
     setError(null);
     try {
-      const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
+      const { data } = await api.post<PostRaw>("/posts/", { content: newPost.trim() });
       setNewPost("");
+      const normalized = normalizePost(data);
       setPosts(prev =>
-        [data, ...prev].sort(
+        [normalized, ...prev].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
       );
@@ -269,18 +339,15 @@ export default function Profile() {
     try {
       const amFollowing = profile.followers?.some(u => u.username === loggedUser);
       if (amFollowing) {
-        // se seu backend usa POST para unfollow também, troque para POST
         await api.delete(`/profile/${encodeURIComponent(viewUser)}/follow/`);
       } else {
-        const r = await api.post(
+        await api.post(
           `/profile/${encodeURIComponent(viewUser)}/follow/`,
           {},
           { headers: { "Content-Type": "application/json" } }
         );
-        // opcional: conferir r.data?.is_following
       }
-      // refetch para garantir contadores e listas consistentes
-      await fetchProfile(viewUser);
+      await fetchProfile(viewUser); // garante contadores + listas
     } catch (e: any) {
       const status = e?.response?.status;
       const detail =
@@ -316,15 +383,15 @@ export default function Profile() {
       )
     );
     try {
-      const { data } = await api.post(`/posts/${post.id}/like/`);
+      const { data } = await api.post<{ liked?: boolean; likes_count?: number }>(`/posts/${post.id}/like/`);
       setPosts(prev =>
         prev.map(p =>
           p.id === post.id
             ? {
-                ...p,
-                liked: data?.liked ?? !post.liked,
-                likes_count: data?.likes_count ?? (post.likes_count + (post.liked ? -1 : 1)),
-              }
+              ...p,
+              liked: data?.liked ?? !post.liked,
+              likes_count: data?.likes_count ?? (post.likes_count + (post.liked ? -1 : 1)),
+            }
             : p
         )
       );
@@ -352,19 +419,19 @@ export default function Profile() {
     try {
       let data: Post[] = [];
       try {
-        const r = await api.get<Post[]>(`/posts/${parentId}/replies/`);
-        data = onlyRepliesOf(r.data, parentId);
-      } catch {}
+        const r = await api.get<PostRaw[]>(`/posts/${parentId}/replies/`);
+        data = onlyRepliesOf(r.data.map(normalizePost), parentId);
+      } catch { }
       if (!data.length) {
         try {
-          const r2 = await api.get<Post[]>(`/posts/?parent=${parentId}`);
-          data = onlyRepliesOf(r2.data, parentId);
-        } catch {}
+          const r2 = await api.get<PostRaw[]>(`/posts/?parent=${parentId}`);
+          data = onlyRepliesOf(r2.data.map(normalizePost), parentId);
+        } catch { }
       }
       if (!data.length) {
         try {
-          const r3 = await api.get<Post[]>(`/posts/feed/`);
-          data = onlyRepliesOf(r3.data, parentId);
+          const r3 = await api.get<PostRaw[]>(`/posts/feed/`);
+          data = onlyRepliesOf(r3.data.map(normalizePost), parentId);
         } catch (e) {
           console.error("Fallback replies/feed falhou:", e);
         }
@@ -390,9 +457,10 @@ export default function Profile() {
     const text = replyText.trim();
     if (!text) return;
     try {
-      const { data } = await api.post<Post>("/posts/", { content: text, parent: parentId });
+      const { data } = await api.post<PostRaw>("/posts/", { content: text, parent: parentId });
+      const normalized = normalizePost(data);
       setPosts(prev => prev.map(p => (p.id === parentId ? { ...p, comments_count: p.comments_count + 1 } : p)));
-      setRepliesMap(prev => ({ ...prev, [parentId]: [data, ...(prev[parentId] ?? [])] }));
+      setRepliesMap(prev => ({ ...prev, [parentId]: [normalized, ...(prev[parentId] ?? [])] }));
       setReplyText("");
       setReplyForId(null);
     } catch (e) {
@@ -406,10 +474,6 @@ export default function Profile() {
   if (!profile) return <Page><Card>Não foi possível carregar o perfil.</Card></Page>;
 
   const amIFollowingThisUser = !isMe && profile.followers?.some(u => u.username === loggedUser);
-
-  function refetchMe(): void {
-    throw new Error("Function not implemented.");
-  }
 
   return (
     <Page>
@@ -431,7 +495,7 @@ export default function Profile() {
                     </Button>
                   )}
                   <Button onClick={toggleFollow} disabled={followBusy}>
-                    {profile.followers?.some(u => u.username === loggedUser) ? "Deixar de seguir" : "Seguir"}
+                    {amIFollowingThisUser ? "Deixar de seguir" : "Seguir"}
                   </Button>
                 </>
               )}
@@ -490,8 +554,16 @@ export default function Profile() {
                 )}
 
                 <PostHead>
-                  {new Date(p.created_at).toLocaleString("pt-BR")}
-                  {p.parent_detail && <> — Retweet de {p.parent_detail.user}</>}
+                  {/* AUTOR CLICÁVEL */}
+                  <Link to={`/profile/${p.user}`}>@{p.user}</Link>
+                  <span style={{ color: "#8d99ae" }}>
+                    · {new Date(p.created_at).toLocaleString("pt-BR")}
+                  </span>
+                  {p.parent_detail?.user && (
+                    <span style={{ color: "#8d99ae" }}>
+                      — Retweet de <Link to={`/profile/${p.parent_detail.user}`}>@{p.parent_detail.user}</Link>
+                    </span>
+                  )}
                 </PostHead>
 
                 <div style={{ fontSize: "1rem", color: "#17203c" }}>{p.content}</div>
@@ -509,7 +581,7 @@ export default function Profile() {
                       <>
                         {(repliesMap[p.id] ?? []).map(r => (
                           <ReplyItem key={r.id}>
-                            <strong>@{r.user}</strong>{" "}
+                            <strong><Link to={`/profile/${r.user}`}>@{r.user}</Link></strong>{" "}
                             <span style={{ color: "#8d99ae" }}>
                               · {new Date(r.created_at).toLocaleString("pt-BR")}
                             </span>
@@ -576,7 +648,10 @@ export default function Profile() {
             </Card>
 
             {isMe && (
-              <EditProfileBox onUpdated={refetchMe} onUsernameChanged={(u) => navigate(`/profile/${u}`)} />
+              <EditProfileBox
+                onUpdated={() => { if (viewUser) fetchProfile(viewUser); }}
+                onUsernameChanged={(u) => { if (u) navigate(`/profile/${u}`); }}
+              />
             )}
           </SideCol>
         </div>
@@ -584,3 +659,4 @@ export default function Profile() {
     </Page>
   );
 }
+
