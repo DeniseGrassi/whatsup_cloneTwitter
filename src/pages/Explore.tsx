@@ -98,7 +98,7 @@ const follow = async (u: string) => {
         <Title>Explorar pessoas</Title>
         <Btn
           variant="ghost"
-          onClick={() => (me ? navigate(`/profile/${me}`) : navigate("/feed"))}
+          onClick={() => (me ? navigate(`/profile/${me}`) : navigate("/Feed Global"))}
         >
           Voltar ao perfil
         </Btn>

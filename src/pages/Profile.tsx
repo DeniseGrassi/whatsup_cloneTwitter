@@ -541,7 +541,7 @@ export default function Profile() {
           )}
 
           <Card>
-            <SectionTitle>Postagens ({posts.length})</SectionTitle>
+            <SectionTitle>Meu Feed de Notícias ({posts.length})</SectionTitle>
             {posts.length === 0 && <p>Sem tweets ainda.</p>}
             {posts.map(p => (
               <PostCard key={p.id}>
