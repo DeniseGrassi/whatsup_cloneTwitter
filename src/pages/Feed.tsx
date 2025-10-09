@@ -128,6 +128,14 @@ export default function Feed() {
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   };
 
+  function mergeById(newList: Post[], prevList: Post[]) {
+    const map = new Map<number, Post>();
+    for (const p of [...newList, ...prevList]) map.set(p.id, p);
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }
+
   const fetchPosts = useCallback(async () => {
     try {
       abortRef.current?.abort();
@@ -138,25 +146,22 @@ export default function Feed() {
 
       let data: Post[] = [];
 
-      // 1) tenta o endpoint de feed
-      if (token) {
-        try {
-          const r = await api.get<Post[]>("/posts/feed/", { signal: abortRef.current.signal });
-          data = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
-        } catch (e: any) {
-          if (e?.response?.status !== 401) {
-            console.warn("Falha em /posts/feed/, tentando /posts/", e);
-          }
-        }
-      }
-
-      // 2) fallback: /posts/ (sem ?user=)
-      if (!data.length) {
+      // 1) PRIORIDADE: todos os tweets
+      try {
         const r = await api.get<Post[]>("/posts/", { signal: abortRef.current.signal });
         data = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
+      } catch (e: any) {
+        console.warn("Falha em /posts/ (todos). Tentando /posts/feed/…", e);
       }
 
-      // >>> não filtre por usuário aqui! <<<
+      // 2) Fallback: feed personalizado (seguindo)
+      if (!data.length) {
+        try {
+          const r2 = await api.get<Post[]>("/posts/feed/", { signal: abortRef.current.signal });
+          data = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
+        } catch { }
+      }
+
       setPosts(curr => mergeById(data, curr));
     } catch (e: any) {
       if (e?.name === "CanceledError" || e?.message === "canceled") return;
@@ -168,7 +173,7 @@ export default function Feed() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
 
   useEffect(() => {
@@ -224,19 +229,16 @@ export default function Feed() {
 
     try {
       setPublishing(true);
-      const { data } = await api.post<Post>("/posts/", { content });
-
-      // limpa composer
+      await api.post<Post>("/posts/", { content });
       setText("");
-
-      // >>> atualização otimista: insere no topo sem refetch
-      setPosts(prev => mergeById([data], prev));
+      await fetchPosts(); // garante sincronismo com a lista completa
     } catch (e: any) {
       alert(e?.response?.status ? `Erro ${e.response.status} ao publicar.` : "Erro ao publicar.");
     } finally {
       setPublishing(false);
     }
   };
+
 
 
   const handleLike = async (post: Post) => {
