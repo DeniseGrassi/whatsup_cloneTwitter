@@ -1,35 +1,26 @@
+# whatsup_backend/settings.py
 import os
 from pathlib import Path
 import dj_database_url
-import os
-CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 from corsheaders.defaults import default_headers, default_methods
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = os.getenv("DEBUG", "False") == "True"
+# >>> Em dev, ligue por padrão; em prod defina DEBUG=False na env
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
-# Em produção, **não** deixe a SECRET_KEY hard-coded!
-#   heroku config:set SECRET_KEY="sua_chave_super_secreta"
 SECRET_KEY = os.getenv(
     "SECRET_KEY",
     "django-insecure-s&)q@ar2qk+gpux=&c7_ls&jgio5u_jhs$3tuia3w+#(hsmqjz",
 )
 
-# -------------------------------------------------
-# Hosts
-# -------------------------------------------------
 ALLOWED_HOSTS = [
-    "whatsup-backend-c00eef392a0f.herokuapp.com",  
-    ".vercel.app",                                  
+    "whatsup-backend-c00eef392a0f.herokuapp.com",
+    ".vercel.app",
     "localhost",
     "127.0.0.1",
 ]
 
-# -------------------------------------------------
-# Apps
-# -------------------------------------------------
 INSTALLED_APPS = [
     # Django
     "django.contrib.admin",
@@ -38,26 +29,25 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "cloudinary",
-    "cloudinary_storage",
 
     # Terceiros
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
-    "whitenoise.runserver_nostatic", 
+    "whitenoise.runserver_nostatic",
 
-    # apps
+    # Storage de mídia
+    "cloudinary",
+    "cloudinary_storage",
+
+    # Apps
     "users.apps.UsersConfig",
     "posts",
 ]
 
-# -------------------------------------------------
-# Middleware
-# -------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",          
+    "corsheaders.middleware.CorsMiddleware",        # antes de CommonMiddleware
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -67,63 +57,48 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-
-# -------------------------------------------------
-# CORS / CSRF (frontend Vercel)
-# -------------------------------------------------
+# ------------------ CORS / CSRF ------------------
+# Em dev, libere tudo; em prod, use lista
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
-    "https://whatsup-topaz.vercel.app",
-    "http://localhost:3000",        
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",        
-    "http://127.0.0.1:5173",
-]
-
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.vercel\.app$",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://whatsup-topaz.vercel.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://whatsup-topaz.vercel.app",
+]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.vercel\.app$"]
+CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
+CORS_ALLOW_METHODS = list(default_methods)
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://whatsup-topaz.vercel.app",
     "https://whatsup-backend-c00eef392a0f.herokuapp.com",
 ]
 
-
-
-CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
-CORS_ALLOW_METHODS = list(default_methods)
-
-
-# -------------------------------------------------
-# URLs / Templates / WSGI
-# -------------------------------------------------
 ROOT_URLCONF = "whatsup_backend.urls"
 
-TEMPLATES = [
-    {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-            ],
-        },
+TEMPLATES = [{
+    "BACKEND": "django.template.backends.django.DjangoTemplates",
+    "DIRS": [],
+    "APP_DIRS": True,
+    "OPTIONS": {
+        "context_processors": [
+            "django.template.context_processors.debug",
+            "django.template.context_processors.request",
+            "django.contrib.auth.context_processors.auth",
+            "django.contrib.messages.context_processors.messages",
+        ],
     },
-]
+}]
 
 WSGI_APPLICATION = "whatsup_backend.wsgi.application"
 
-# -------------------------------------------------
-# Banco de Dados (Heroku + fallback local)
-# -------------------------------------------------
 DATABASES = {
     "default": dj_database_url.config(
         default=os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
@@ -131,60 +106,43 @@ DATABASES = {
     )
 }
 
-# -------------------------------------------------
-# Autenticação / DRF
-# -------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        # Se quiser forçar login por padrão:
-        # "rest_framework.permissions.IsAuthenticated",
-        "rest_framework.permissions.AllowAny",
-    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
 }
 
-# -------------------------------------------------
-# Internacionalização
-# -------------------------------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# -------------------------------------------------
-# Arquivos Estáticos (Whitenoise)
-# -------------------------------------------------
+# -------- Static / Media --------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STORAGES = {
-    "default": {  # <- uploads (MEDIA) vão para a Cloudinary
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    },
-    "staticfiles": {  # seus estáticos continuam no Whitenoise
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-# Heroku faz proxy https -> http: isso garante request.is_secure()
+# Ativa Cloudinary só se CLOUDINARY_URL existir e não estiver em DEBUG
+USE_CLOUDINARY = bool(os.getenv("CLOUDINARY_URL")) and not DEBUG
+
+if USE_CLOUDINARY:
+    STORAGES = {
+        "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
+
+# HTTPS atrás de proxy (Heroku)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 
-# -------------------------------------------------
-# Media (se usar uploads locais)
-# -------------------------------------------------
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
-
-
-
-

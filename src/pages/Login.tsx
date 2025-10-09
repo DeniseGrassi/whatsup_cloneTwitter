@@ -1,130 +1,151 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from "react";
+import styled from "styled-components";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const Container = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
+// ---------- estilos ----------
+const Page = styled.div`
   min-height: 100vh;
-  background: #f0f2f5;
+  display: grid;
+  place-items: center;
+  background: #f3f4f8;
 `;
-const Card = styled.div`
-  background: #fff;
-  padding: 2rem 2.5rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+const Card = styled.form`
   width: 100%;
-  max-width: 400px;
+  max-width: 460px;
+  background: #fff;
+  border: 1px solid #e7e7ef;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 6px 24px rgba(20, 22, 50, 0.06);
 `;
-const Title = styled.h2`
-  margin: 0 0 1.5rem;
+const Title = styled.h1`
+  font-size: 20px;
+  margin: 0 0 16px;
   text-align: center;
-  color: #333;
+  color: #1f2a44;
 `;
-const Field = styled.div`
-  margin-bottom: 1rem;
-  label {
-    display: block;
-    margin-bottom: 0.25rem;
-    font-size: 0.9rem;
-    color: #555;
-  }
-  input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 0.375rem;
-    font-size: 1rem;
-    transition: border-color 0.2s;
-    &:focus {
-      outline: none;
-      border-color: #5865f2;
-    }
+const Label = styled.label`
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #5b667e;
+  margin-bottom: 10px;
+`;
+const Input = styled.input`
+  height: 40px;
+  border: 1px solid #dfe3ee;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 15px;
+  outline: none;
+  &:focus {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
   }
 `;
 const Button = styled.button`
   width: 100%;
-  padding: 0.75rem;
-  background: #5865f2;
+  height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: #7c3aed;
   color: #fff;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
-  &:hover {
-    background: #4a52c2;
+  margin-top: 8px;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
-const ErrorMessage = styled.p`
-  color: #d32f2f;
-  text-align: center;
-  margin-bottom: 1rem;
+const ErrorBox = styled.div`
+  background: #fdecee;
+  color: #b42318;
+  border: 1px solid #f3b4b9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  margin-bottom: 12px;
 `;
 
+// ---------- componente ----------
 export default function Login() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const nav = useNavigate();
+  const { login } = useAuth(); // login(username, password)
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault();            // impede recarregar a página
     setError(null);
-
-    const ident = username.trim();
-
+    setBusy(true);
     try {
-      const realUsername = await login(ident, password);
-      localStorage.setItem("username", realUsername);
-      navigate(`/profile/${realUsername}`);
-    } catch {
-      setError("Usuário ou senha inválidos");
+      // usa o login do AuthContext (ele já chama a API /login/)
+      const res: any = await login(username, password);
+
+      // se o seu login() retornar false/erro, trate aqui:
+      if (res === false || (res && res.error)) {
+        throw new Error(res?.error || "Credenciais inválidas");
+      }
+
+      nav("/feed");
+    } catch (err: any) {
+      const msg =
+        err?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        "Credenciais inválidas";
+      setError(msg);               // fica visível até o usuário mudar algo
+    } finally {
+      setBusy(false);
     }
   };
-
-
-
   return (
-    <Container>
-      <Card>
+    <Page>
+      <Card onSubmit={handleSubmit}>
         <Title>Entrar no WhatsUp!</Title>
-        {error && <ErrorMessage>{error}</ErrorMessage>}
 
-        <form onSubmit={handleSubmit}>
-          <Field>
-            <label>Usuário</label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Usuário"
-              required
-            />
-          </Field>
+        {error && <ErrorBox>{error}</ErrorBox>}
 
-          <Field>
-            <label>Senha</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Sua senha"
-              required
-            />
-          </Field>
+        <Label>
+          Usuário
+          <Input
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="Seu usuário ou e-mail"
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+        </Label>
 
-          <Button type="submit">Entrar</Button>
+        <Label>
+          Senha
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="Sua senha"
+          />
+        </Label>
 
-          <p style={{ marginTop: '1rem', textAlign: 'center' }}>
-            Não tem conta? <Link to="/register">Crie uma agora!</Link>
-          </p>
-        </form>
+        <Button type="submit" disabled={busy || !username || !password}>
+          {busy ? "Entrando..." : "Entrar"}
+        </Button>
+
+        <div style={{ marginTop: 12, textAlign: "center", fontSize: 14 }}>
+          Não tem conta? <Link to="/register">Crie uma agora!</Link>
+        </div>
       </Card>
-    </Container>
+    </Page>
   );
 }
