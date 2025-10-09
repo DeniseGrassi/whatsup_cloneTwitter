@@ -1,7 +1,8 @@
-// src/appRoutes.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import PublicOnlyRoute from "./routes/PublicOnlyRoute";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Feed from "./pages/Feed";
 import Explore from "./pages/Explore";
@@ -9,11 +10,25 @@ import Explore from "./pages/Explore";
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Home -> força login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
       {/* Públicas */}
-      <Route path="/login" element={<Login />} />
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <Login />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicOnlyRoute>
+            <Register />
+          </PublicOnlyRoute>
+        }
+      />
       <Route path="/explore" element={<Explore />} />
 
       {/* Protegidas */}
@@ -22,7 +37,6 @@ export default function AppRoutes() {
         <Route path="/profile/:username" element={<Profile />} />
       </Route>
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
