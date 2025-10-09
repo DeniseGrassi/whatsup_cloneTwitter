@@ -145,7 +145,10 @@ export default function Register() {
       // sucesso: já loga
       localStorage.setItem("token", r.data.token);
       localStorage.setItem("username", normalized);
-      navigate("/login");
+      // se tiver AuthContext com updateUsername, opcional:
+      try { (window as any).dispatchEvent(new Event("auth-updated")) } catch { }
+      // vai para o perfil do novo usuário:
+      navigate(`/profile/${normalized}`);
     } catch (err: any) {
       const data = err?.response?.data || {};
       const pick = (v: any) =>
