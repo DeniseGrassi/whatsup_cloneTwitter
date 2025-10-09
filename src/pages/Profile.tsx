@@ -141,82 +141,124 @@ export default function Profile() {
     followers_count: d.followers_count ?? (d.followers?.length ?? 0),
   });
 
-  async function fetchUserPosts(usernameToLoad: string) {
-    const onlyMine = (arr: Post[]) => (arr || []).filter(p => p.user === usernameToLoad);
+// ===== 1) BUSCAR POSTS DE QUEM O DONO DO PERFIL SEGUE + DO PRÓPRIO DONO =====
+async function fetchPostsFromAllowed(allowedUsernames: string[]) {
+  const allow = new Set<string>(allowedUsernames);
 
+  const filterAndSort = (arr: Post[] | undefined) =>
+    (arr ?? [])
+      .filter(p => allow.has(p.user))
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+  try {
+    // 1) tenta /posts/feed/ (normalmente traz um volume grande)
     try {
-      const r = await api.get<Post[]>(`/posts/?user=${encodeURIComponent(usernameToLoad)}`);
-      setPosts(onlyMine(r.data));
-      return;
-    } catch {}
-
-    try {
-      const r2 = await api.get<Post[]>(`/posts/user/${encodeURIComponent(usernameToLoad)}/`);
-      setPosts(onlyMine(r2.data));
-      return;
-    } catch {}
-
-    try {
-      const r3 = await api.get<Post[]>(`/posts/feed/`);
-      setPosts(onlyMine(r3.data));
-    } catch (e) {
-      console.error("Falha ao buscar posts", e);
-      setPosts([]);
-    }
-  }
-
-  async function refetchMe() {
-    const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
-    const p = normalize(data);
-    // buster de cache para ver a foto nova imediatamente
-    if (p.photo) p.photo = `${p.photo}?v=${Date.now()}`;
-    setProfile(p);
-    await fetchUserPosts(p.username);
-  }
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true); setError(null);
-      try {
-        const path = isMe ? "/profile/me/" : `/profile/${routeUsername}/`;
-        const { data } = await api.get<Partial<ProfileData>>(path);
-        const p = normalize(data);
-        setProfile(p);
-
-        const usernameToLoad = routeUsername ?? p.username;
-        await fetchUserPosts(usernameToLoad);
-      } catch (e: any) {
-        setError(e?.response?.status ? `Erro ${e.response.status}` : e?.message);
-      } finally {
-        setLoading(false);
+      const r = await api.get<Post[]>("/posts/feed/");
+      const data = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
+      const filtered = filterAndSort(data);
+      if (filtered.length) {
+        setPosts(filtered);
+        return;
       }
-    })();
-  }, [routeUsername, isMe]);
+    } catch {}
 
-  useEffect(() => {
-    const onFocus = () => {
-      const usernameToLoad = routeUsername || profile?.username;
-      if (usernameToLoad) fetchUserPosts(usernameToLoad);
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [routeUsername, profile?.username]);
-
-  const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
-
-  const handleCreatePost = async () => {
-    if (!isMe || !canPost) return;
-    setPosting(true); setError(null);
+    // 2) fallback: /posts/
     try {
-      const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
-      setNewPost("");
-      setPosts(prev => [data, ...prev]);
+      const r2 = await api.get<Post[]>("/posts/");
+      const data2 = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
+      setPosts(filterAndSort(data2));
+      return;
+    } catch {}
+
+    setPosts([]);
+  } catch (e) {
+    console.error("Falha ao buscar posts (allowed):", e);
+    setPosts([]);
+  }
+}
+
+// helper para montar a lista de usuários permitidos a partir do perfil carregado
+function buildAllowedUsernames(p: ProfileData) {
+  const following = (p.following ?? []).map(u => u.username);
+  // inclui também o dono do perfil
+  return Array.from(new Set<string>([p.username, ...following]));
+}
+
+
+// ===== 2) REFETCH DO MEU PERFIL (aplica filtro novo) =====
+async function refetchMe() {
+  const { data } = await api.get<Partial<ProfileData>>("/profile/me/");
+  const p = normalize(data);
+  if (p.photo) p.photo = `${p.photo}?v=${Date.now()}`;
+  setProfile(p);
+
+  const allowed = buildAllowedUsernames(p);
+  await fetchPostsFromAllowed(allowed);
+}
+
+
+// ===== 3) CARREGAMENTO INICIAL (aplica filtro novo) =====
+useEffect(() => {
+  (async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const path = isMe ? "/profile/me/" : `/profile/${routeUsername}/`;
+      const { data } = await api.get<Partial<ProfileData>>(path);
+      const p = normalize(data);
+      setProfile(p);
+
+      const allowed = buildAllowedUsernames(p);
+      await fetchPostsFromAllowed(allowed);
     } catch (e: any) {
-      setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
+      setError(e?.response?.status ? `Erro ${e.response.status}` : e?.message);
     } finally {
-      setPosting(false);
+      setLoading(false);
     }
+  })();
+}, [routeUsername, isMe]);
+
+
+// ===== 4) AO VOLTAR O FOCO PARA A ABA, RECARREGAR COM O MESMO FILTRO =====
+useEffect(() => {
+  const onFocus = () => {
+    if (!profile) return;
+    const allowed = buildAllowedUsernames(profile);
+    void fetchPostsFromAllowed(allowed);
   };
+  window.addEventListener("focus", onFocus);
+  return () => window.removeEventListener("focus", onFocus);
+}, [profile]);
+
+
+// ===== 5) PUBLICAR (mantém comportamento atual) =====
+const canPost = newPost.trim().length > 0 && newPost.length <= MAX_LEN && !posting;
+
+const handleCreatePost = async () => {
+  if (!isMe || !canPost) return;
+  setPosting(true);
+  setError(null);
+  try {
+    const { data } = await api.post<Post>("/posts/", { content: newPost.trim() });
+    setNewPost("");
+
+    // como o próprio dono sempre está no "allowed", a postagem
+    // dele aparece no topo imediatamente
+    setPosts(prev =>
+      [data, ...prev].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    );
+  } catch (e: any) {
+    setError(e?.response?.status ? `Erro ${e.response.status}` : "Falha ao publicar.");
+  } finally {
+    setPosting(false);
+  }
+};
 
   const handleComposerKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
