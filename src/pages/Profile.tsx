@@ -5,8 +5,9 @@ import React, {
   useState,
   KeyboardEvent,
 } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
+import axios from "axios";
 import api, { resolveMediaUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import fotoAvatar from "../foto_avatar.avif";
@@ -115,12 +116,11 @@ const MAX_LEN = 280;
 
 /* ====== Helpers de normalização ====== */
 const pickUsername = (raw: any): string | undefined => {
-  // cobre vários formatos comuns do DRF
   if (typeof raw?.user === "string") return raw.user;
   if (typeof raw?.username === "string") return raw.username;
   if (typeof raw?.user_detail?.username === "string") return raw.user_detail.username;
   if (typeof raw?.author?.username === "string") return raw.author.username;
-  if (typeof raw?.parent_detail?.user === "string") return raw.parent_detail.user; // fallback
+  if (typeof raw?.parent_detail?.user === "string") return raw.parent_detail.user;
   if (typeof raw?.user === "number") return String(raw.user);
   return undefined;
 };
@@ -141,17 +141,16 @@ const normalizePost = (r: PostRaw): Post => ({
 
 /* ====== Componente ====== */
 export default function Profile() {
-  const { username: loggedUser, logout } = useAuth();
-  const params = useParams<{ username: string }>();
+  const { username: routeUsername } = useParams<{ username: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  /** username “em exibição”: rota > logado */
-  const viewUser = useMemo<string>(() => {
-    const routeU = params.username && params.username !== "null" ? params.username : undefined;
-    return routeU ?? (loggedUser ?? "");   // garante string
-  }, [params.username, loggedUser]);
+  const auth: any = useAuth();
+  const token: string | null = auth?.token ?? null;
+  const logout: (() => void) = auth?.logout ?? (() => { });
+  const loggedUser: string | null =
+    auth?.user?.username ?? auth?.username ?? localStorage.getItem("username");
 
-  const isMe = viewUser !== "" && viewUser === (loggedUser ?? "")
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
@@ -169,6 +168,16 @@ export default function Profile() {
   const [followBusy, setFollowBusy] = useState(false);
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  /* ---------- REDIRECIONA PARA LOGIN SE NÃO AUTENTICADO ---------- */
+  useEffect(() => {
+    if (!token) {
+      navigate("/login", {
+        replace: true,
+        state: { from: location.pathname, reason: "unauthenticated" },
+      });
+    }
+  }, [token, navigate, location.pathname]);
 
   const avatarSrc = (p?: string | null) => resolveMediaUrl(p || undefined) || fotoAvatar;
   const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -211,14 +220,10 @@ export default function Profile() {
     const allow = new Set<string>(allowedUsernames);
     const filterAndSort = (arr: Post[] | undefined) =>
       (arr ?? [])
-        .filter(p => allow.has(p.user))         // filtra por autor normalizado
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+        .filter(p => allow.has(p.user))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     try {
-      // 1) tenta feed
       try {
         const r = await api.get<PostRaw[] | { results: PostRaw[] }>("/posts/feed/");
         const raw = Array.isArray(r.data) ? r.data : (r.data as any).results ?? [];
@@ -230,7 +235,6 @@ export default function Profile() {
         }
       } catch { }
 
-      // 2) fallback: lista completa
       try {
         const r2 = await api.get<PostRaw[] | { results: PostRaw[] }>("/posts/");
         const raw2 = Array.isArray(r2.data) ? r2.data : (r2.data as any).results ?? [];
@@ -249,7 +253,6 @@ export default function Profile() {
   /** ------- (opcional) fallback para listas de seguidores/seguindo ------- */
   const maybeFetchFollowLists = async (p: ProfileData): Promise<ProfileData> => {
     const out = { ...p };
-    // só tenta fallback se contagem > 0 mas lista veio vazia
     try {
       if (out.following_count > 0 && out.following.length === 0) {
         const r = await api.get<MiniUser[]>(`/profile/${encodeURIComponent(p.username)}/following/`);
@@ -266,20 +269,50 @@ export default function Profile() {
   };
 
   /** ------- carregar perfil por USERNAME (inclusive “me”) ------- */
-  const fetchProfile = async (user: string) => {
-    const { data } = await api.get<Partial<ProfileData>>(`/profile/${encodeURIComponent(user)}/`);
-    let p = normalize(data);
-    // fallback: se a API não entregar listas no /:username/, tenta nos endpoints dedicados
-    p = await maybeFetchFollowLists(p);
-    setProfile(p);
+  const fetchProfile = async (userName: string) => {
+    try {
+      const { data } = await api.get<Partial<ProfileData>>(`/profile/${encodeURIComponent(userName)}/`);
+      let p = normalize(data);
+      p = await maybeFetchFollowLists(p);
+      setProfile(p);
 
-    const allowed = buildAllowedUsernames(p);
-    await fetchPostsFromAllowed(allowed);
+      const allowed = buildAllowedUsernames(p);
+      await fetchPostsFromAllowed(allowed);
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const s = err.response?.status;
+        if (s === 404 || s === 401) {
+          navigate("/login", {
+            replace: true,
+            state: { from: location.pathname, reason: s === 404 ? "profile_not_found" : "unauthorized" },
+          });
+          return;
+        }
+      }
+      throw err;
+    }
   };
+
+  /** username “em exibição”: rota > logado */
+  const viewUser = useMemo<string>(() => {
+    const fromRoute = routeUsername && routeUsername !== "null" ? routeUsername : undefined;
+    return fromRoute ?? (loggedUser ?? ""); // garante string
+  }, [routeUsername, loggedUser]);
+
+  const isMe = viewUser !== "" && viewUser === (loggedUser ?? "");
 
   /** ------- carregamento inicial / troca de rota ------- */
   useEffect(() => {
-    if (!viewUser) return;
+    if (!token) return; // já redirecionamos acima
+    // Se não há username na rota, manda para login também
+    if (!routeUsername) {
+      navigate("/login", {
+        replace: true,
+        state: { from: location.pathname, reason: "missing_username" },
+      });
+      return;
+    }
+
     setLoading(true);
     setError(null);
     (async () => {
@@ -291,9 +324,9 @@ export default function Profile() {
         setLoading(false);
       }
     })();
-  }, [viewUser]);
+  }, [token, routeUsername, viewUser, navigate, location.pathname]);
 
-  /** ------- ao voltar o foco pra aba, refaz o feed com o mesmo filtro ------- */
+  /** ------- ao voltar o foco pra aba, refaz o feed ------- */
   useEffect(() => {
     const onFocus = () => {
       if (!profile) return;
@@ -347,7 +380,7 @@ export default function Profile() {
           { headers: { "Content-Type": "application/json" } }
         );
       }
-      await fetchProfile(viewUser); // garante contadores + listas
+      await fetchProfile(viewUser);
     } catch (e: any) {
       const status = e?.response?.status;
       const detail =
@@ -541,7 +574,7 @@ export default function Profile() {
           )}
 
           <Card>
-            <SectionTitle> Feed de Notícias ({posts.length})</SectionTitle>
+            <SectionTitle>Meu Feed de Notícias ({posts.length})</SectionTitle>
             {posts.length === 0 && <p>Sem tweets ainda.</p>}
             {posts.map(p => (
               <PostCard key={p.id}>
@@ -554,7 +587,6 @@ export default function Profile() {
                 )}
 
                 <PostHead>
-                  {/* AUTOR CLICÁVEL */}
                   <Link to={`/profile/${p.user}`}>@{p.user}</Link>
                   <span style={{ color: "#8d99ae" }}>
                     {" "}· {new Date(p.created_at).toLocaleString("pt-BR")}
@@ -660,4 +692,3 @@ export default function Profile() {
     </Page>
   );
 }
-
