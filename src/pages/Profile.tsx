@@ -557,11 +557,12 @@ export default function Profile() {
                   {/* AUTOR CLICÁVEL */}
                   <Link to={`/profile/${p.user}`}>@{p.user}</Link>
                   <span style={{ color: "#8d99ae" }}>
-                    · {new Date(p.created_at).toLocaleString("pt-BR")}
+                    {" "}· {new Date(p.created_at).toLocaleString("pt-BR")}
                   </span>
                   {p.parent_detail?.user && (
                     <span style={{ color: "#8d99ae" }}>
-                      — Retweet de <Link to={`/profile/${p.parent_detail.user}`}>@{p.parent_detail.user}</Link>
+                      {" "}— Retweet de{" "}
+                      <Link to={`/profile/${p.parent_detail.user}`}>@{p.parent_detail.user}</Link>
                     </span>
                   )}
                 </PostHead>
