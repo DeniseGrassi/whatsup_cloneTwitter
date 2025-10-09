@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 // ---------- estilos ----------
@@ -71,8 +71,10 @@ const ErrorBox = styled.div`
 
 // ---------- componente ----------
 export default function Login() {
-  const nav = useNavigate();
-  const { login } = useAuth(); // login(username, password)
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname as string | undefined;
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -80,30 +82,30 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();            // impede recarregar a página
+    e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      // usa o login do AuthContext (ele já chama a API /login/)
-      const res: any = await login(username, password);
+      const ok = await login(username, password);
+      if (!ok) throw new Error("Credenciais inválidas");
 
-      // se o seu login() retornar false/erro, trate aqui:
-      if (res === false || (res && res.error)) {
-        throw new Error(res?.error || "Credenciais inválidas");
-      }
+      // pega o username que o AuthContext gravou (login() já salva em localStorage)
+      const u = localStorage.getItem("username") || username;
 
-      nav("/feed");
+      // se veio de rota protegida, volta pra lá; senão, vai para o perfil
+      navigate(from || `/profile/${u}`, { replace: true });
     } catch (err: any) {
       const msg =
         err?.message ||
         err?.response?.data?.error ||
         err?.response?.data?.detail ||
         "Credenciais inválidas";
-      setError(msg);               // fica visível até o usuário mudar algo
+      setError(msg);
     } finally {
       setBusy(false);
     }
   };
+  
   return (
     <Page>
       <Card onSubmit={handleSubmit}>

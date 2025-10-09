@@ -11,9 +11,11 @@ import { useAuth } from "./context/AuthContext";
 
 
 function RootRedirect() {
-  const { token, loading } = useAuth();
+  const { token, username, loading } = useAuth();
   if (loading) return null;
-  return token ? <Navigate to="/feed" replace /> : <Navigate to="/login" replace />;
+  return token
+    ? <Navigate to={`/profile/${username ?? ""}`} replace />
+    : <Navigate to="/login" replace />;
 }
 
 // function MeRedirect() {
