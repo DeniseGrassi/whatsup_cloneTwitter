@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import { useNavigate } from "react-router-dom";
-import api from "../../src/services/api"
-
+import { useNavigate, Link } from "react-router-dom";
+import api from "../services/api"; // <- ajuste o caminho caso seu arquivo esteja em /src/pages
 
 const Bg = styled.div`
   min-height: 100vh;
@@ -16,7 +15,7 @@ const Card = styled.form`
   background: #fff;
   padding: 2.5rem 2rem;
   border-radius: 18px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   min-width: 320px;
   display: flex;
   flex-direction: column;
@@ -52,7 +51,7 @@ const Input = styled.input`
   }
 `;
 
-const Button = styled.button`
+const Button = styled.button<{ $loading?: boolean }>`
   background: #5b6dfa;
   color: #fff;
   font-weight: 600;
@@ -63,6 +62,8 @@ const Button = styled.button`
   margin-top: 6px;
   cursor: pointer;
   transition: background 0.2s;
+  opacity: ${({ $loading }) => ($loading ? 0.85 : 1)};
+  pointer-events: ${({ $loading }) => ($loading ? "none" : "auto")};
 
   &:hover {
     background: #3f4bb8;
@@ -90,6 +91,7 @@ const RegisterLink = styled.p`
   }
 `;
 
+type RegisterResponse = { token: string };
 
 export default function Register() {
   const [username, setUsername] = useState("");
@@ -97,57 +99,81 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const normalized = username.trim().replace(/\s+/g, "_");
+    const validUserRe = /^[\w.@+-]+$/;
+
+    if (!validUserRe.test(normalized)) {
+      setError(
+        "Usuário inválido. Use apenas letras, números e @ . + - _ (sem espaços)."
+      );
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Informe um e-mail válido.");
+      return;
+    }
+
+    if (!password) {
+      setError("Informe a senha.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("As senhas não conferem!");
       return;
     }
 
-    // normaliza e valida username
-    const normalized = username.trim().replace(/\s+/g, "_"); // troca espaços por _
-    const validUserRe = /^[\w.@+-]+$/; // letras, números, @ . + - _
-    if (!validUserRe.test(normalized)) {
-      setError("Usuário inválido. Use apenas letras, números e @ . + - _ (sem espaços).");
-      return;
-    }
-    //  "https://whatsup-backend-c00eef392a0f.herokuapp.com/api/register/"
-
     try {
-      await api.post("/register/", {
+      setLoading(true);
+
+      // Enviamos password e password2 (teu backend aceita qualquer formato)
+      const r = await api.post<RegisterResponse>("/register/", {
         username: normalized,
-        email,
+        email: email.trim(),
         password,
         password2: confirmPassword,
-      }
-      );
+      });
+
+      // sucesso: já loga
+      localStorage.setItem("token", r.data.token);
+      localStorage.setItem("username", normalized);
       navigate("/login");
     } catch (err: any) {
+      const data = err?.response?.data || {};
+      const pick = (v: any) =>
+        Array.isArray(v) ? v.join(" ") : typeof v === "string" ? v : "";
 
-      const data = err?.response?.data;
-      if (data?.username) {
-        const msg = Array.isArray(data.username) ? data.username.join(" ") : String(data.username);
-        setError(msg);
-      } else if (data?.email) {
-        setError(Array.isArray(data.email) ? data.email.join(" ") : String(data.email));
-      } else if (data?.password) {
-        setError(Array.isArray(data.password) ? data.password.join(" ") : String(data.password));
-      } else if (err?.message?.includes("Network Error")) {
+      const msg =
+        pick(data.detail) ||
+        pick(data.non_field_errors) ||
+        pick(data.username) ||
+        pick(data.email) ||
+        pick(data.password2) ||
+        pick(data.password) ||
+        "Erro ao criar conta. Tente novamente.";
+
+      if (msg) setError(msg);
+      else if (err?.message?.includes("Network Error"))
         setError("Falha de rede/CORS. Confira o backend e a base URL.");
-      } else {
-        setError("Erro ao criar conta. Tente novamente.");
-      }
+      else setError("Erro ao criar conta. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
   };
 
-
   return (
     <Bg>
-      <Card onSubmit={handleRegister}>
+      <Card onSubmit={handleRegister} noValidate>
         <Title>Criar Conta</Title>
+
         <Label htmlFor="username">Usuário</Label>
         <Input
           id="username"
@@ -156,7 +182,9 @@ export default function Register() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
+          autoComplete="username"
         />
+
         <Label htmlFor="email">E-mail</Label>
         <Input
           id="email"
@@ -165,7 +193,9 @@ export default function Register() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          autoComplete="email"
         />
+
         <Label htmlFor="password">Senha</Label>
         <Input
           id="password"
@@ -174,7 +204,9 @@ export default function Register() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          autoComplete="new-password"
         />
+
         <Label htmlFor="confirmPassword">Confirmar Senha</Label>
         <Input
           id="confirmPassword"
@@ -183,11 +215,17 @@ export default function Register() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
+          autoComplete="new-password"
         />
+
         {error && <ErrorMsg>{error}</ErrorMsg>}
-        <Button type="submit">Cadastrar</Button>
+
+        <Button type="submit" $loading={loading}>
+          {loading ? "Cadastrando..." : "Cadastrar"}
+        </Button>
+
         <RegisterLink>
-          Já tem conta? <a href="/login">Entrar</a>
+          Já tem conta? <Link to="/login">Entrar</Link>
         </RegisterLink>
       </Card>
     </Bg>
