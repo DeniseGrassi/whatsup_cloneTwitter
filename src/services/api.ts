@@ -1,4 +1,3 @@
-// src/services/api.ts
 import axios from "axios";
 
 // 1) Permite forçar a URL via .env
