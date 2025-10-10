@@ -3,6 +3,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 
 export default function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = Boolean(localStorage.getItem("token"));
-  return isAuthenticated ? <Navigate to="/feed" replace /> : <>{children}</>;
+  const token = localStorage.getItem("token");
+  const username = localStorage.getItem("username");
+  return token ? <Navigate to={username ? `/profile/${username}` : "/profile/me"} replace /> : <>{children}</>;
 }

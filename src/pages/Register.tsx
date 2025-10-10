@@ -172,6 +172,7 @@ export default function Register() {
     }
   };
 
+
   return (
     <Bg>
       <Card onSubmit={handleRegister} noValidate>

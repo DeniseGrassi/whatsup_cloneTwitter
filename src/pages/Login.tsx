@@ -86,14 +86,12 @@ export default function Login() {
     setError(null);
     setBusy(true);
     try {
-      const ok = await login(username, password);
-      if (!ok) throw new Error("Credenciais inválidas");
+      const uname = await login(username, password); // agora retorna string | null
+      if (!uname) throw new Error("Credenciais inválidas");
 
-      // pega o username que o AuthContext gravou (login() já salva em localStorage)
-      const u = localStorage.getItem("username") || username;
-
-      // se veio de rota protegida, volta pra lá; senão, vai para o perfil
-      navigate(from || `/profile/${u}`, { replace: true });
+      // se veio de rota protegida, respeita; senão, perfil do próprio usuário
+      const to = (from && from !== "/login") ? from : `/profile/${uname}`;
+      navigate(to, { replace: true });
     } catch (err: any) {
       const msg =
         err?.message ||
@@ -105,7 +103,7 @@ export default function Login() {
       setBusy(false);
     }
   };
-  
+
   return (
     <Page>
       <Card onSubmit={handleSubmit}>
